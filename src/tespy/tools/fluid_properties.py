@@ -605,6 +605,18 @@ def h_pT(p, T, fluid, force_gas=False):
     Memorise.state[fluid].update(CP.PT_INPUTS, p, T)
     return Memorise.state[fluid].hmass()
 
+def TminPsat(p, fluid):
+    r"""
+    This function is for limiting maximum temperatures of INCOMP::Water alone.. 
+    There is no method to calculate TminPsat
+    """  
+    if not Memorise.back_end[fluid] == 'INCOMP':
+        msg = 'This function TminPsat should only be called with INCOMP:Water'
+        logging.error(msg)
+        raise ValueError(msg)
+
+    return CPPSI('T','P',p,'Q',0,'HEOS::Water')
+
 
 def dh_mix_pdT(flow, T):
     r"""
