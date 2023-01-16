@@ -2095,7 +2095,7 @@ class Network:
             c.m.val_SI = self.m_range_SI[1]
             logging.debug(self.property_range_message(c, 'm'))
 
-    def solve_check_temperature(self, c):
+    def solve_check_temperature(self, c : con):
         r"""
         Check if temperature is within user specified limits.
 
@@ -2113,6 +2113,10 @@ class Network:
             [fp.Memorise.value_range[f][3] for
              f in flow[3].keys() if flow[3][f] > err]
         ) # why substract 100 here?? - 100
+
+        if fp.Memorise.is_incomp_mixture and ('Water' in flow[3].keys()):
+            Tmax = min(Tmax,fp.TminPsat(flow[1],'Water'))
+
         hmin = fp.h_mix_pT(flow, Tmin)
         hmax = fp.h_mix_pT(flow, Tmax)
 
