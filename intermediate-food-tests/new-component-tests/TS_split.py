@@ -173,7 +173,7 @@ class MergeWithPressureLoss(Merge):
                 )
                 logging.warning(msg)
 
-class SeparatorWithCompositionSplits(Separator):
+class SeparatorWithSpeciesSplits(Separator):
 
     @staticmethod
     def component():
@@ -298,7 +298,7 @@ fluids = ["INCOMP::Water", "INCOMP::T66"]
 nw = Network(fluids=fluids, p_unit="bar", T_unit="C")
 
 so = Source("Source")
-se = SeparatorWithCompositionSplits("Separator")
+se = SeparatorWithSpeciesSplits("Separator")
 si1 = Sink("Sink 1")
 si2 = Sink("Sink 2")
 
