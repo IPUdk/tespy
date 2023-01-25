@@ -1,9 +1,6 @@
-# %%
-
 import logging
 
-
-from tespy.components import HeatExchangerSimple, Source, Sink, Merge, Separator 
+from tespy.components import HeatExchangerSimple, Source, Sink, Merge, Separator, Splitter
 from tespy.tools import ComponentProperties
 from tespy.connections import Connection
 from tespy.networks import Network
@@ -289,56 +286,87 @@ class SeparatorWithSpeciesSplits(Separator):
         #print(self.jacobian[k,:,:])
 
 
+class SplitWithFlowSplitter(Splitter):
 
+    @staticmethod
+    def component():
+        return 'splitter with flow split ratios'
 
-# %%
+    def get_variables(self):
+        variables = super().get_variables()
+        variables["FS"] = self.dc_cp_FS(
+            min_val=0,
+            deriv=self.FS_deriv,
+            func=self.FS_func,
+            latex=self.pr_func_doc,
+            num_eq=1,
+        )
+        return variables
 
-# caution, must write "Water" (capital W) in INCOMP backend -> CoolProp bug? Intentional?
-fluids = ["INCOMP::Water", "INCOMP::T66"]
-nw = Network(fluids=fluids, p_unit="bar", T_unit="C")
+    class dc_cp_FS(ComponentProperties):
+        """
+        Data container for component properties. 
+        + FS_fluid
+        + FS_outlet
+        """
+        @staticmethod
+        def attr():
+            """
+            Return the available attributes for a ComponentProperties type object.
 
-so = Source("Source")
-se = SeparatorWithSpeciesSplits("Separator")
-si1 = Sink("Sink 1")
-si2 = Sink("Sink 2")
+            Returns
+            -------
+            out : dict
+                Dictionary of available attributes (dictionary keys) with default
+                values.
+            """
+            return {
+                'val': 1, 'val_SI': 0, 'is_set': False, 'd': 1e-4,
+                'min_val': -1e12, 'max_val': 1e12, 'is_var': False,
+                'val_ref': 1, 'design': np.nan, 'is_result': False,
+                'num_eq': 0, 'func_params': {}, 'func': None, 'deriv': None,
+                'latex': None, 'split_outlet' : str}
 
-c1 = Connection(so, "out1", se, "in1", label="1")
-c2 = Connection(se, "out1", si1, "in1", label="2")
-c3 = Connection(se, "out2", si2, "in1", label="3")
+    def FS_func(self):
+        r"""
+        Equation for pressure drop.
 
-nw.add_conns(c1, c2, c3)
+        Returns
+        -------
+        residual : float
+            Residual value of equation.
 
-# set some generic data for starting values
-c1.set_attr(m=1, p=1.2, T=30, fluid={"Water": 0.9, "T66": 0.1})
+            .. math::
 
-# set compositions 
-c2.set_attr(fluid={"Water": 0.85, "T66": 0.15})
-# or others 
-#c3.set_attr(fluid={"Water": 0.85, "T66": 0.15})
-# or others
-#c2.set_attr(fluid={"Water": 0.85})
-#c3.set_attr(fluid={"Water": 1})
+                0 = p_\mathrm{in,1} \cdot pr - p_\mathrm{out,1}
+        """
 
-# This one produce error because T66 is 0 and the equation cannot be solved.. 
-#c2.set_attr(fluid={"Water": 1, "T66": 0.0})
+        out_i = int(self.FS.split_outlet[3:]) - 1
+        res = self.inl[0].m.val_SI * self.FS.val - self.outl[out_i].m.val_SI 
 
-# specify this one to avoid using the species flow split : SFS  
-#c2.set_attr(m=0.5)
-# set the species flow split, specify the fluid and the outlet too.. (we might need some checks of this)
-se.set_attr(SFS={
-    'val': 0.6, 'is_set': True, 
-    'split_fluid' : 'T66', 'split_outlet' : "out1"})
+        #print(res)
+        return res
 
-# add some guess values
-c2.set_attr(m0=0.5,p0=1.2,h0=1e5,T0=50,fluid0={"Water": 0.5, "T66": 0.5})
-c3.set_attr(m0=0.5,p0=1.2,h0=1e5,T0=50,fluid0={"Water": 0.5, "T66": 0.5})
+    def FS_deriv(self, increment_filter, k):
+        r"""
+        Calculate the partial derivatives for combustion pressure ratio.
 
-nw.solve("design")
-nw.print_results()
+        Parameters
+        ----------
+        increment_filter : ndarray
+            Matrix for filtering non-changing variables.
 
-print(nw.results['Connection'])
+        k : int
+            Position of equation in Jacobian matrix.
+        """
 
-m_T66_c1 = c1.m.val * c1.fluid.val['T66']
-m_T66_c2 = c2.m.val * c2.fluid.val['T66']
-print(f"Species flow split is {m_T66_c2/m_T66_c1}")
+        out_i = int(self.FS.split_outlet[3:]) - 1
 
+        j = 0 
+        self.jacobian[k, j, 0]     = self.FS.val 
+        j = 1 + out_i 
+        self.jacobian[k, j, 0]     = -1
+        
+        #print(self.jacobian)
+        #print(self.jacobian[k,:,:])
+    
