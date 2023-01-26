@@ -467,3 +467,20 @@ class DataContainerSimple(DataContainer):
             'val': np.nan, 'is_set': False,
             'func_params': {}, 'func': None, 'deriv': None, 'latex': None,
             'num_eq': 0}
+
+
+class ComponentPropertiesArray(DataContainer):
+    """
+    Data container for arrays.
+    """
+    @staticmethod
+    def attr():
+        """
+        """
+        return {
+            'val': [], 'val_SI': [], 'is_set': False, 'd': 1e-4,
+            'min_val': -1e12, 'max_val': 1e12, 'is_var': False,
+            'val_ref': 1, 'design': np.nan, 'is_result': False,
+            'num_eq': 0, 'func_params': {}, 'func': None, 'deriv': None,
+            'latex': None}
+      

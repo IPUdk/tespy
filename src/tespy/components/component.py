@@ -26,6 +26,8 @@ from tespy.tools.data_containers import ComponentProperties as dc_cp
 from tespy.tools.data_containers import DataContainerSimple as dc_simple
 from tespy.tools.data_containers import GroupedComponentCharacteristics as dc_gcc
 from tespy.tools.data_containers import GroupedComponentProperties as dc_gcp
+from tespy.tools.data_containers import ComponentPropertiesArray as dc_cpa
+
 from tespy.tools.document_models import generate_latex_eq
 from tespy.tools.fluid_properties import v_mix_ph
 from tespy.tools.global_vars import err
@@ -218,6 +220,45 @@ class Component:
                     # value specification of grouped component parameter method
                     if isinstance(kwargs[key], str):
                         data.method = kwargs[key]
+
+                    # invalid datatype for keyword
+                    else:
+                        msg = (
+                            'Bad datatype for keyword argument ' + key +
+                            ' at ' + self.label + '.')
+                        logging.error(msg)
+                        raise TypeError(msg)
+
+                elif isinstance(data, dc_cpa):
+                    try:
+                        for f in kwargs[key]:
+                            float(f)
+                        is_numeric = True
+                    except (TypeError, ValueError):
+                        is_numeric = False         
+
+                    for f in kwargs[key]:
+                        if (f == 'var'):
+                            is_var = True
+                        else:
+                            is_var = False
+                            break
+
+                    if is_numeric:
+                        if np.isnan(kwargs[key]).any():
+                            data.set_attr(is_set=False)
+                            if isinstance(data, dc_cpa): 
+                                data.set_attr(is_var=False)
+                        else:
+                            data.set_attr(val=kwargs[key], is_set=True)
+                            if isinstance(data, dc_cpa): 
+                                data.set_attr(is_var=False)
+                            data.set_attr(num_eq=len(kwargs[key]))
+
+                    elif is_var: 
+                        if isinstance(data, dc_cpa): 
+                            data.set_attr(is_set=True, is_var=True)
+                            data.set_attr(num_eq=len(kwargs[key]))
 
                     # invalid datatype for keyword
                     else:

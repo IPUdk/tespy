@@ -1,14 +1,10 @@
 import logging
 
-from tespy.components import HeatExchangerSimple, Source, Sink, Merge, Separator, Splitter
-from tespy.tools import ComponentProperties
-from tespy.connections import Connection
-from tespy.networks import Network
-import numpy as np
-
+from tespy.components import HeatExchangerSimple, Merge, Separator, Splitter
 from tespy.tools.data_containers import ComponentProperties as dc_cp
+from tespy.tools.data_containers import ComponentPropertiesArray as dc_cpa
 from tespy.tools.data_containers import GroupedComponentProperties as dc_gcp
-
+from tespy.tools.fluid_properties import T_mix_ph
 
 class DiabaticSimpleHeatExchanger(HeatExchangerSimple):
 
@@ -178,38 +174,15 @@ class SeparatorWithSpeciesSplits(Separator):
 
     def get_variables(self):
         variables = super().get_variables()
-        variables["SFS"] = self.dc_cp_SFS(
+        variables["SFS"] = dc_cp_SFS(
             min_val=0,
             deriv=self.SFS_deriv,
             func=self.SFS_func,
             latex=self.pr_func_doc,
             num_eq=1,
         )
+        variables["Q"] = dc_cpa(is_result=True)       
         return variables
-
-    class dc_cp_SFS(ComponentProperties):
-        """
-        Data container for component properties. 
-        + SFS_fluid
-        + SFS_outlet
-        """
-        @staticmethod
-        def attr():
-            """
-            Return the available attributes for a ComponentProperties type object.
-
-            Returns
-            -------
-            out : dict
-                Dictionary of available attributes (dictionary keys) with default
-                values.
-            """
-            return {
-                'val': 1, 'val_SI': 0, 'is_set': False, 'd': 1e-4,
-                'min_val': -1e12, 'max_val': 1e12, 'is_var': False,
-                'val_ref': 1, 'design': np.nan, 'is_result': False,
-                'num_eq': 0, 'func_params': {}, 'func': None, 'deriv': None,
-                'latex': None, 'split_fluid' : str, 'split_outlet' : str}
 
     def SFS_func(self):
         r"""
@@ -285,6 +258,72 @@ class SeparatorWithSpeciesSplits(Separator):
         #print(self.jacobian)
         #print(self.jacobian[k,:,:])
 
+    def calc_parameters(self):
+        super().calc_parameters()
+
+        for o in self.outl:
+            self.Q.val += [o.m.val * (self.inl[0].h.val - o.h.val)]        
+
+
+class SeparatorWithSpeciesSplitsAndDeltaT(SeparatorWithSpeciesSplits):
+
+    @staticmethod
+    def component():
+        return 'separator with species flow splits and dT on outlets'
+
+    def get_variables(self):
+        variables = super().get_variables()
+        variables["deltaT"] = dc_cpa(
+            deriv=self.energy_balance_deriv, # same as before
+            func=self.energy_balance_deltaT_func,
+            latex=self.pr_func_doc
+        )
+        return variables
+
+    def get_mandatory_constraints(self):
+        return {
+            'mass_flow_constraints': {
+                'func': self.mass_flow_func, 'deriv': self.mass_flow_deriv,
+                'constant_deriv': True, 'latex': self.mass_flow_func_doc,
+                'num_eq': 1},
+            'fluid_constraints': {
+                'func': self.fluid_func, 'deriv': self.fluid_deriv,
+                'constant_deriv': False, 'latex': self.fluid_func_doc,
+                'num_eq': self.num_nw_fluids},
+            # 'energy_balance_constraints': {
+            #     'func': self.energy_balance_func,
+            #     'deriv': self.energy_balance_deriv,
+            #     'constant_deriv': False, 'latex': self.energy_balance_func_doc,
+            #     'num_eq': self.num_o},
+            'pressure_constraints': {
+                'func': self.pressure_equality_func,
+                'deriv': self.pressure_equality_deriv,
+                'constant_deriv': True,
+                'latex': self.pressure_equality_func_doc,
+                'num_eq': self.num_i + self.num_o - 1}
+        }
+
+    def energy_balance_deltaT_func(self):
+        r"""
+        Calculate energy balance.
+
+        Returns
+        -------
+        residual : list
+            Residual value of energy balance.
+
+            .. math::
+
+                0 = T_{in} - T_{out,j}\\
+                \forall j \in \text{outlets}
+        """
+        residual = []
+        T_in = T_mix_ph(self.inl[0].get_flow(), T0=self.inl[0].T.val_SI)
+        i=0
+        for o in self.outl:
+            residual += [T_in + self.deltaT.val[i] - T_mix_ph(o.get_flow(), T0=o.T.val_SI)]
+            i+=1
+        return residual
 
 class SplitWithFlowSplitter(Splitter):
 
@@ -294,7 +333,7 @@ class SplitWithFlowSplitter(Splitter):
 
     def get_variables(self):
         variables = super().get_variables()
-        variables["FS"] = self.dc_cp_FS(
+        variables["FS"] = dc_cp_FS(
             min_val=0,
             deriv=self.FS_deriv,
             func=self.FS_func,
@@ -302,30 +341,6 @@ class SplitWithFlowSplitter(Splitter):
             num_eq=1,
         )
         return variables
-
-    class dc_cp_FS(ComponentProperties):
-        """
-        Data container for component properties. 
-        + FS_fluid
-        + FS_outlet
-        """
-        @staticmethod
-        def attr():
-            """
-            Return the available attributes for a ComponentProperties type object.
-
-            Returns
-            -------
-            out : dict
-                Dictionary of available attributes (dictionary keys) with default
-                values.
-            """
-            return {
-                'val': 1, 'val_SI': 0, 'is_set': False, 'd': 1e-4,
-                'min_val': -1e12, 'max_val': 1e12, 'is_var': False,
-                'val_ref': 1, 'design': np.nan, 'is_result': False,
-                'num_eq': 0, 'func_params': {}, 'func': None, 'deriv': None,
-                'latex': None, 'split_outlet' : str}
 
     def FS_func(self):
         r"""
@@ -369,4 +384,29 @@ class SplitWithFlowSplitter(Splitter):
         
         #print(self.jacobian)
         #print(self.jacobian[k,:,:])
-    
+
+
+#%% Class containers
+
+class dc_cp_SFS(dc_cp):
+    """
+    Data container for simple properties. 
+    + SFS_fluid
+    + SFS_outlet
+    """
+    @staticmethod
+    def attr():
+        attributes = dc_cp.attr()
+        attributes.update({'split_fluid' : str, 'split_outlet' : str})
+        return attributes
+
+class dc_cp_FS(dc_cp):
+    """
+    Data container for component properties. 
+    + FS_outlet
+    """
+    @staticmethod
+    def attr():
+        attributes = dc_cp.attr()
+        attributes.update({'split_outlet' : str})
+        return attributes
