@@ -262,7 +262,7 @@ class SeparatorWithSpeciesSplits(Separator):
         super().calc_parameters()
 
         for o in self.outl:
-            self.Q.val += [o.m.val * (o.h.val - self.inl[0].h.val)]        
+            self.Q.val += [o.m.val_SI * (o.h.val_SI - self.inl[0].h.val_SI)]        
 
 
 class SeparatorWithSpeciesSplitsAndDeltaT(SeparatorWithSpeciesSplits):
