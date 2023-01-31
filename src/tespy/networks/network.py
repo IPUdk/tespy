@@ -1813,7 +1813,7 @@ class Network:
                    'fluid    | custom\n')
             msg += '-' * 8 + '+----------' * 5 + '+' + '-' * 9
 
-        print(msg)
+        logging.log(31, msg)
 
     def print_iterinfo_body(self):
         """Print convergence progress."""
@@ -1845,7 +1845,7 @@ class Network:
             if self.num_comp_vars > 0:
                 msg += ' |      nan'
 
-        print(msg)
+        logging.log(31, msg)
 
     def print_iterinfo_tail(self):
         """Print tail of convergence progress."""
@@ -1862,10 +1862,10 @@ class Network:
 
         if self.iterinfo:
             if self.num_comp_vars == 0:
-                print('-' * 8 + '+----------' * 4 + '+' + '-' * 9)
+                logging.log(31, '-' * 8 + '+----------' * 4 + '+' + '-' * 9)
             else:
-                print('-' * 8 + '+----------' * 5 + '+' + '-' * 9)
-            print(msg)
+                logging.log(31, '-' * 8 + '+----------' * 5 + '+' + '-' * 9)
+            logging.log(31, msg)
 
     def matrix_inversion(self):
         """Invert matrix of derivatives and caluclate increment."""
@@ -2648,6 +2648,7 @@ class Network:
     def print_results(self, colored=True, colors={}):
         r"""Print the calculations results to prompt."""
         # Define colors for highlighting values in result table
+        result = ""
         coloring = {
             'end': '\033[0m',
             'set': '\033[94m',
@@ -2679,8 +2680,8 @@ class Network:
 
                     if len(df) > 0:
                         # printout with tabulate
-                        print('##### RESULTS (' + cp + ') #####')
-                        print(
+                        result += ('\n##### RESULTS (' + cp + ') #####\n')
+                        result += (
                             tabulate(
                                 df, headers='keys', tablefmt='psql',
                                 floatfmt='.2e'
@@ -2702,8 +2703,8 @@ class Network:
                             coloring['end'])
 
         if len(df) > 0:
-            print('##### RESULTS (Connection) #####')
-            print(
+            result += ('\n##### RESULTS (Connection) #####\n')
+            result += (
                 tabulate(df, headers='keys', tablefmt='psql', floatfmt='.3e')
             )
 
@@ -2717,13 +2718,14 @@ class Network:
                     df.loc['total', 'bus value'] = (
                         coloring['set'] + str(df.loc['total', 'bus value']) +
                         coloring['end'])
-                print('##### RESULTS (Bus: ' + b.label + ') #####')
-                print(
+                result += ('##### RESULTS (Bus: ' + b.label + ') #####')
+                result += (
                     tabulate(
                         df, headers='keys', tablefmt='psql',
                         floatfmt='.3e'
                     )
                 )
+        return result
 
     def print_components(self, c, *args):
         """
