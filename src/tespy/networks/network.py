@@ -2114,8 +2114,10 @@ class Network:
              f in flow[3].keys() if flow[3][f] > err]
         ) # why substract 100 here?? - 100
 
-        if fp.Memorise.is_incomp_mixture and ('Water' in flow[3].keys()):
-            Tmax = min(Tmax,fp.TminPsat(flow[1],'Water'))
+        # limiting Temperature of water if incompressible (only liquid)
+        if fp.Memorise.is_incomp_mixture:
+            if not ('HEOS' in fp.Memorise.back_end.values()) and ('Water' in fp.Memorise.back_end.keys()): 
+                min(Tmax,fp.TminPsat(flow[1],'Water'))
 
         hmin = fp.h_mix_pT(flow, Tmin)
         hmax = fp.h_mix_pT(flow, Tmax)

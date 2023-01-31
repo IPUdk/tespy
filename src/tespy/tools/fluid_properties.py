@@ -268,8 +268,10 @@ def T_mix_ph(flow, T0=675):
             [Memorise.value_range[f][3] for f in fl if flow[3][f] > err]
         ) - 0.1 
 
-        if Memorise.is_incomp_mixture and ('Water' in flow[3].keys()):
-            valmax = min(valmax,TminPsat(flow[1],'Water'))
+        # limiting Temperature of water if incompressible (only liquid)
+        if Memorise.is_incomp_mixture:
+            if not ('HEOS' in Memorise.back_end.values()) and ('Water' in Memorise.back_end.keys()): 
+                valmax = min(valmax,TminPsat(flow[1],'Water'))
 
         if T0 > valmax or np.isnan(T0):
             T0 = valmax * 0.9
