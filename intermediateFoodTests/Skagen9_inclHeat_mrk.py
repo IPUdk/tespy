@@ -136,14 +136,12 @@ c11.set_attr(p=1)
 # set conditions around drier
 c12.set_attr(fluid={'Water': 0.08})
 c13.set_attr(fluid={'Water': 1, 'FoodFat': 0, 'FoodProtein': 0})
-c12.set_attr(T=95)
+c12.set_attr(T=99)
 c13.set_attr(T=110)
-c13.set_attr(h0=2700)
-
 c12.set_attr(p0=1)
 c13.set_attr(p0=1)
 
-#c13.set_attr(state='g')
+#c12.set_attr(state='l')
 
 network.solve('design',init_only=True)
 
