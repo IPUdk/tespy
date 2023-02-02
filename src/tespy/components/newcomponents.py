@@ -6,6 +6,8 @@ from tespy.tools.data_containers import ComponentPropertiesArray as dc_cpa
 from tespy.tools.data_containers import GroupedComponentProperties as dc_gcp
 from tespy.tools.fluid_properties import T_mix_ph
 
+import numpy as np
+
 class DiabaticSimpleHeatExchanger(HeatExchangerSimple):
 
     @staticmethod
@@ -339,11 +341,6 @@ class SeparatorWithSpeciesSplitsAndDeltaTAndPr(SeparatorWithSpeciesSplitsAndDelt
 
     def get_variables(self):
         variables = super().get_variables()
-        variables["deltaT"] = dc_cpa(
-            deriv=self.energy_balance_deriv, # same as before
-            func=self.energy_balance_deltaT_func,
-            latex=self.pr_func_doc
-        )
         variables["pr"] = dc_cp(
             min_val=0,
             deriv=self.pr_deriv,
@@ -418,27 +415,94 @@ class SeparatorWithSpeciesSplitsAndDeltaTAndPr(SeparatorWithSpeciesSplitsAndDelt
             #     'num_eq': self.num_i + self.num_o - 1}
         }
 
-    def energy_balance_deltaT_func(self):
+
+class SeparatorWithSpeciesSplitsAndDeltaTAndPrAndBus(SeparatorWithSpeciesSplitsAndDeltaTAndPr):
+
+    @staticmethod
+    def component():
+        return 'separator with species flow splits and dT and Pr on outlets + Bus connection on Q'
+
+    def get_variables(self):
+        variables = super().get_variables()
+        return variables
+
+    def bus_func(self, bus):
         r"""
-        Calculate energy balance.
+        Calculate the value of the bus function.
+
+        Parameters
+        ----------
+        bus : tespy.connections.bus.Bus
+            TESPy bus object.
 
         Returns
         -------
-        residual : list
-            Residual value of energy balance.
+        val : float
+            Value of energy transfer :math:`\dot{E}`. This value is passed to
+            :py:meth:`tespy.components.component.Component.calc_bus_value`
+            for value manipulation according to the specified characteristic
+            line of the bus.
 
             .. math::
 
-                0 = T_{in} - T_{out,j}\\
-                \forall j \in \text{outlets}
+                \dot{E} = \dot{m}_{in} \cdot \left( h_{out} - h_{in} \right)
         """
-        residual = []
-        T_in = T_mix_ph(self.inl[0].get_flow(), T0=self.inl[0].T.val_SI)
-        i=0
+        Qout = []
         for o in self.outl:
-            residual += [T_in + self.deltaT.val[i] - T_mix_ph(o.get_flow(), T0=o.T.val_SI)]
-            i+=1
-        return residual
+            Qout += [o.m.val_SI * (o.h.val_SI - self.inl[0].h.val_SI)]     
+        return np.sum(Qout)
+
+        # return self.inl[0].m.val_SI * (
+        #     self.outl[0].h.val_SI - self.inl[0].h.val_SI)
+
+    def bus_func_doc(self, bus):
+        r"""
+        Return LaTeX string of the bus function.
+
+        Parameters
+        ----------
+        bus : tespy.connections.bus.Bus
+            TESPy bus object.
+
+        Returns
+        -------
+        latex : str
+            LaTeX string of bus function.
+        """
+        return (
+            r'\dot{m}_\mathrm{in} \cdot \left(h_\mathrm{out} - '
+            r'h_\mathrm{in} \right)')
+
+    def bus_deriv(self, bus):
+        r"""
+        Calculate partial derivatives of the bus function.
+
+        Parameters
+        ----------
+        bus : tespy.connections.bus.Bus
+            TESPy bus object.
+
+        Returns
+        -------
+        deriv : ndarray
+            Matrix of partial derivatives.
+        """
+#        for o in self.outl:
+#            self.Qout.val += [o.m.val_SI * (o.h.val_SI - self.inl[0].h.val_SI)]        
+#        return np.sum(self.Qout.val)      
+
+        deriv = np.zeros((1, len(self.outl)+1, self.num_nw_vars))
+        f = self.calc_bus_value
+        deriv[0, 0, 2] = self.numeric_deriv(f, 'h', 0, bus=bus)
+        i = 0
+        for o in self.outl:
+            i = i+1
+            deriv[0, i, 0] = self.numeric_deriv(f, 'm', i, bus=bus)
+            deriv[0, i, 2] = self.numeric_deriv(f, 'h', i, bus=bus)
+        return deriv
+
+
+
 
 class SplitWithFlowSplitter(Splitter):
 
