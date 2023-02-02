@@ -181,7 +181,8 @@ class SeparatorWithSpeciesSplits(Separator):
             latex=self.pr_func_doc,
             num_eq=1,
         )
-        variables["Q"] = dc_cpa(is_result=True)       
+        variables["Q"] = dc_cp(is_result=True)       
+        variables["Qout"] = dc_cpa()       
         return variables
 
     def SFS_func(self):
@@ -261,8 +262,11 @@ class SeparatorWithSpeciesSplits(Separator):
     def calc_parameters(self):
         super().calc_parameters()
 
+        self.Qout.val = []
         for o in self.outl:
-            self.Q.val += [o.m.val_SI * (o.h.val_SI - self.inl[0].h.val_SI)]        
+            self.Qout.val += [o.m.val_SI * (o.h.val_SI - self.inl[0].h.val_SI)]        
+
+        self.Q.val = np.sum(self.Qout.val)
 
 
 class SeparatorWithSpeciesSplitsAndDeltaT(SeparatorWithSpeciesSplits):
