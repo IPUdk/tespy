@@ -329,72 +329,13 @@ class SeparatorWithSpeciesSplitsAndDeltaT(SeparatorWithSpeciesSplits):
             i+=1
         return residual
 
-class SplitWithFlowSplitter(Splitter):
+
+
+class SeparatorWithSpeciesSplitsAndDeltaTAndPr(SeparatorWithSpeciesSplitsAndDeltaT):
 
     @staticmethod
     def component():
-        return 'splitter with flow split ratios'
-
-    def get_variables(self):
-        variables = super().get_variables()
-        variables["FS"] = dc_cp_FS(
-            min_val=0,
-            deriv=self.FS_deriv,
-            func=self.FS_func,
-            latex=self.pr_func_doc,
-            num_eq=1,
-        )
-        return variables
-
-    def FS_func(self):
-        r"""
-        Equation for pressure drop.
-
-        Returns
-        -------
-        residual : float
-            Residual value of equation.
-
-            .. math::
-
-                0 = p_\mathrm{in,1} \cdot pr - p_\mathrm{out,1}
-        """
-
-        out_i = int(self.FS.split_outlet[3:]) - 1
-        res = self.inl[0].m.val_SI * self.FS.val - self.outl[out_i].m.val_SI 
-
-        #print(res)
-        return res
-
-    def FS_deriv(self, increment_filter, k):
-        r"""
-        Calculate the partial derivatives for combustion pressure ratio.
-
-        Parameters
-        ----------
-        increment_filter : ndarray
-            Matrix for filtering non-changing variables.
-
-        k : int
-            Position of equation in Jacobian matrix.
-        """
-
-        out_i = int(self.FS.split_outlet[3:]) - 1
-
-        j = 0 
-        self.jacobian[k, j, 0]     = self.FS.val 
-        j = 1 + out_i 
-        self.jacobian[k, j, 0]     = -1
-        
-        #print(self.jacobian)
-        #print(self.jacobian[k,:,:])
-
-
-class SeparatorWithSpeciesSplitsAndDeltaTAndPr(SeparatorWithSpeciesSplits):
-
-    @staticmethod
-    def component():
-        return 'separator with species flow splits and dT on outlets'
+        return 'separator with species flow splits and dT and Pr on outlets'
 
     def get_variables(self):
         variables = super().get_variables()
