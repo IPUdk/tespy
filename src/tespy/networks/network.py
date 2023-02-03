@@ -1552,7 +1552,7 @@ class Network:
 
     def solve(self, mode, init_path=None, design_path=None,
               max_iter=50, min_iter=4, init_only=False, init_previous=True,
-              use_cuda=False, always_all_equations=True):
+              use_cuda=False, always_all_equations=True, print_result=True):
         r"""
         Solve the network.
 
@@ -1597,6 +1597,10 @@ class Network:
             Calculate all equations in every iteration. Disabling this flag,
             will increase calculation speed, especially for mixtures, default:
             :code:`True`.
+        
+        print_result : boolean
+            Print the results to the terminal instead of returning a string 
+            with the results, default: :code:`True`.
 
         Note
         ----
@@ -1666,7 +1670,7 @@ class Network:
         logging.info(msg)
 
         self.solve_determination()
-        iter_result = self.solve_loop()
+        iter_result = self.solve_loop(print_result)
 
         if self.lin_dep:
             msg = (
@@ -1700,7 +1704,7 @@ class Network:
         logging.info(msg)
         return iter_result
 
-    def solve_loop(self):
+    def solve_loop(self, print_result=True):
         r"""Loop of the newton algorithm."""
 
         result = ""
@@ -1714,7 +1718,7 @@ class Network:
         self.progress = True
 
         if self.iterinfo:
-            result += self.print_iterinfo_head() + '\n'
+            result += self.print_iterinfo_head(print_result) + '\n'
 
         for self.iter in range(self.max_iter):
 
@@ -1723,7 +1727,7 @@ class Network:
             self.res = np.append(self.res, norm(self.residual))
 
             if self.iterinfo:
-                result += self.print_iterinfo_body() + '\n'
+                result += self.print_iterinfo_body(print_result) + '\n'
 
             if ((self.iter >= self.min_iter and self.res[-1] < err ** 0.5) or
                     self.lin_dep):
@@ -1737,7 +1741,7 @@ class Network:
 
         self.end_time = time()
 
-        result += self.print_iterinfo_tail() + '\n'
+        result += self.print_iterinfo_tail(print_result) + '\n'
 
         if self.iter == self.max_iter - 1:
             msg = ('Reached maximum iteration count (' + str(self.max_iter) +
@@ -1804,7 +1808,7 @@ class Network:
             logging.error(msg)
             raise hlp.TESPyNetworkError(msg)
 
-    def print_iterinfo_head(self):
+    def print_iterinfo_head(self, print_result=True):
         """Print head of convergence progress."""
         if self.num_comp_vars == 0:
             # iterinfo printout without any custom variables
@@ -1818,10 +1822,14 @@ class Network:
                    'fluid    | custom\n')
             msg += '-' * 8 + '+----------' * 5 + '+' + '-' * 9
 
-        logging.log(31, msg)
-        return msg
+        if print_result:
+            print(msg)
+            return ''
+        else:
+            logging.log(31, msg)
+            return msg
 
-    def print_iterinfo_body(self):
+    def print_iterinfo_body(self, print_result=True):
         """Print convergence progress."""
         vec = self.increment[0:-(self.num_comp_vars + 1)]
         msg = (str(self.iter + 1))
@@ -1850,11 +1858,15 @@ class Network:
             msg += ' |      nan' * 4
             if self.num_comp_vars > 0:
                 msg += ' |      nan'
+        
+        if print_result:
+            print(msg)
+            return ''
+        else:
+            logging.log(31, msg)
+            return msg
 
-        logging.log(31, msg)
-        return msg
-
-    def print_iterinfo_tail(self):
+    def print_iterinfo_tail(self, print_result=True):
         """Print tail of convergence progress."""
         msg = (
             'Total iterations: ' + str(self.iter + 1) + ', Calculation '
@@ -1869,14 +1881,17 @@ class Network:
 
         if self.iterinfo:
             if self.num_comp_vars == 0:
-                logging.log(31, '-' * 8 + '+----------' * 4 + '+' + '-' * 9)
                 result_msg = '-' * 8 + '+----------' * 4 + '+' + '-' * 9 + '\n' + msg
             else:
-                logging.log(31, '-' * 8 + '+----------' * 5 + '+' + '-' * 9)
                 result_msg = '-' * 8 + '+----------' * 5 + '+' + '-' * 9 + '\n' + msg
-            logging.log(31, msg)
-            return result_msg
-        return None
+
+            if print_result:
+                print(result_msg)
+                return ''
+            else:
+                logging.log(31, result_msg)
+                return result_msg
+        return ''
 
     def matrix_inversion(self):
         """Invert matrix of derivatives and caluclate increment."""
@@ -2656,7 +2671,7 @@ class Network:
 
 # %% printing and plotting
 
-    def print_results(self, colored=True, colors={}):
+    def print_results(self, colored=True, colors={}, print_result=True):
         r"""Print the calculations results to prompt."""
         # Define colors for highlighting values in result table
         result = ""
@@ -2736,7 +2751,11 @@ class Network:
                         floatfmt='.3e'
                     )
                 )
-        return result
+        if print_result:
+            print(result)
+            return ''
+        else:
+            return result
 
     def print_components(self, c, *args):
         """
