@@ -268,8 +268,10 @@ def T_mix_ph(flow, T0=675):
             [Memorise.value_range[f][3] for f in fl if flow[3][f] > err]
         ) - 0.1 
 
-        if Memorise.is_incomp_mixture and ('Water' in flow[3].keys()):
-            valmax = min(valmax,TminPsat(flow[1],'Water'))
+        # limiting Temperature of water if incompressible (only liquid)
+        if Memorise.is_incomp_mixture:
+            if not ('HEOS' in Memorise.back_end.values()) and ('Water' in Memorise.back_end.keys()): 
+                valmax = min(valmax,TminPsat(flow[1],'Water'))
 
         if T0 > valmax or np.isnan(T0):
             T0 = valmax * 0.9
@@ -1732,13 +1734,13 @@ def entropy_iteration_IF97(p, h, fluid, output):
     T : float
         Temperature T / K.
     """
-    # region 1 exclusive issue!
+    ## region 1 exclusive issue!
     Memorise.state[fluid].update(CP.HmassP_INPUTS, h, p)
     if p <= 16.529164252605 * 1e6:
         h_at_ph = Memorise.state[fluid].hmass()
         deviation = abs(h_at_ph - h)
         if deviation / h > 0.001:
-            # region 1, where isenthalpic lines are tangent to saturation dome
+            ## region 1, where isenthalpic lines are tangent to saturation dome
             if p > 1e6 and p < 1e7 and h > 2700000 and h < 2850000:
                 smin = 5750
                 smax = 6500
