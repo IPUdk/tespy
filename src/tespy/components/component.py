@@ -12,11 +12,11 @@ available from its original location tespy/components/components.py
 SPDX-License-Identifier: MIT
 """
 
-import logging
 from collections import OrderedDict
 
 import numpy as np
 
+from tespy.tools import logger
 from tespy.tools.characteristics import CharLine
 from tespy.tools.characteristics import CharMap
 from tespy.tools.characteristics import load_default_char as ldc
@@ -98,14 +98,14 @@ class Component:
         # check if components label is of type str and for prohibited chars
         if not isinstance(label, str):
             msg = 'Component label must be of type str!'
-            logging.error(msg)
+            logger.error(msg)
             raise ValueError(msg)
 
         elif len([x for x in [';', ',', '.'] if x in label]) > 0:
             msg = (
                 'You must not use ' + str([';', ',', '.']) + ' in label (' +
                 str(self.component()) + ').')
-            logging.error(msg)
+            logger.error(msg)
             raise ValueError(msg)
 
         else:
@@ -199,7 +199,7 @@ class Component:
                         msg = (
                             'Bad datatype for keyword argument ' + key +
                             ' at ' + self.label + '.')
-                        logging.error(msg)
+                        logger.error(msg)
                         raise TypeError(msg)
 
                 elif isinstance(data, dc_cc) or isinstance(data, dc_cm):
@@ -213,7 +213,7 @@ class Component:
                         msg = (
                             'Bad datatype for keyword argument ' + key +
                             ' at ' + self.label + '.')
-                        logging.error(msg)
+                        logger.error(msg)
                         raise TypeError(msg)
 
                 elif isinstance(data, dc_gcp):
@@ -226,7 +226,7 @@ class Component:
                         msg = (
                             'Bad datatype for keyword argument ' + key +
                             ' at ' + self.label + '.')
-                        logging.error(msg)
+                        logger.error(msg)
                         raise TypeError(msg)
 
                 elif isinstance(data, dc_cpa):
@@ -273,7 +273,7 @@ class Component:
                     msg = (
                         'Please provide the ' + key + ' parameters as list '
                         'at ' + self.label + '.')
-                    logging.error(msg)
+                    logger.error(msg)
                     raise TypeError(msg)
                 if set(kwargs[key]).issubset(list(self.variables.keys())):
                     self.__dict__.update({key: kwargs[key]})
@@ -283,7 +283,7 @@ class Component:
                         'Available parameters for (off-)design specification '
                         'are: ' + str(list(self.variables.keys())) + ' at ' +
                         self.label + '.')
-                    logging.error(msg)
+                    logger.error(msg)
                     raise ValueError(msg)
 
             elif key in ['local_design', 'local_offdesign',
@@ -292,7 +292,7 @@ class Component:
                     msg = (
                         'Please provide the parameter ' + key + ' as boolean '
                         'at component ' + self.label + '.')
-                    logging.error(msg)
+                    logger.error(msg)
                     raise TypeError(msg)
 
                 else:
@@ -309,7 +309,7 @@ class Component:
                     msg = (
                         'Please provide the design_path parameter as string. '
                         'For unsetting use np.nan or None.')
-                    logging.error(msg)
+                    logger.error(msg)
                     raise TypeError(msg)
 
                 self.new_design = True
@@ -319,7 +319,7 @@ class Component:
                 msg = (
                     'Component ' + self.label + ' has no attribute ' +
                     str(key) + '.')
-                logging.error(msg)
+                logger.error(msg)
                 raise KeyError(msg)
 
     def get_attr(self, key):
@@ -341,7 +341,7 @@ class Component:
         else:
             msg = ('Component ' + self.label + ' has no attribute \"' +
                    key + '\".')
-            logging.error(msg)
+            logger.error(msg)
             raise KeyError(msg)
 
     def comp_init(self, nw, num_eq=0):
@@ -419,7 +419,7 @@ class Component:
                         'specified! This component group uses the following '
                         'parameters: ')
                     end = ' at ' + self.label + '. Group will be set to False.'
-                    logging.warning(start + ', '.join(val.elements) + end)
+                    logger.warning(start + ', '.join(val.elements) + end)
                     val.set_attr(is_set=False)
                 else:
                     val.set_attr(is_set=False)
@@ -451,7 +451,7 @@ class Component:
         msg = (
             'The component ' + self.label + ' has ' + str(self.num_vars) +
             ' custom variables.')
-        logging.debug(msg)
+        logger.debug(msg)
 
     def get_variables(self):
         return {}
@@ -525,7 +525,7 @@ class Component:
                 msg = (
                     'The parameter ' + str(param) + ' is not available '
                     'for characteristic function evaluation.')
-                logging.error(msg)
+                logger.error(msg)
                 raise ValueError(msg)
         else:
             if param == 'm':
@@ -919,7 +919,7 @@ class Component:
                         str(data.val) + ' above maximum value (' +
                         str(data.max_val) + ') at component ' + self.label +
                         '.')
-                    logging.warning(msg)
+                    logger.warning(msg)
 
                 elif data.val < data.min_val - err:
                     msg = (
@@ -927,7 +927,7 @@ class Component:
                         str(data.val) + ' below minimum value (' +
                         str(data.min_val) + ') at component ' + self.label +
                         '.')
-                    logging.warning(msg)
+                    logger.warning(msg)
 
             elif isinstance(data, dc_cc) and data.is_set:
                 expr = self.get_char_expr(data.param, **data.char_params)
