@@ -29,4 +29,4 @@ from .turbomachinery.pump import Pump  # noqa: F401
 from .turbomachinery.turbine import Turbine  # noqa: F401
 
 # New components
-from .newcomponents import SeparatorWithSpeciesSplits
+from .newcomponents import *
