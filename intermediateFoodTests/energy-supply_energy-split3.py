@@ -1,6 +1,3 @@
-import sys 
-sys.path.append("src")
-
 from tespy.components import Sink, Source, HeatExchangerSimple, Splitter
 from tespy.connections import Connection, Ref, Bus
 from tespy.networks import Network
