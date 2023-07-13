@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from tespy.components import Separator,Merge,CycleCloser,Valve,Splitter
-from tespy.components.newcomponents import DiabaticSimpleHeatExchanger,MergeWithPressureLoss,SeparatorWithSpeciesSplits,SplitWithFlowSplitter,SeparatorWithSpeciesSplitsAndDeltaT,SeparatorWithSpeciesSplitsAndDeltaTAndPr,SeparatorWithSpeciesSplitsAndDeltaTAndPrAndBus, MassSplitterCOP
+from tespy.components.newcomponents import *
 
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -24,21 +24,21 @@ network = Network(fluids=fluid_list, m_unit='kg / s', p_unit='bar', T_unit='C',h
 
 # Objects
 PurchasedElectricity  = Source('PurchasedElectricity')
-HeatPump              = MassSplitterCOP('HeatPump')
-Heating             = Sink('Consumer1')
-Cooling             = Sink('Consumer2')
+LossModel             = MassFactorLossModelWithPressureLoss('LossModel')
+Heating               = Sink('Consumer1')
+Cooling               = Sink('Consumer2')
 
 # Connections
-c1 = Connection(PurchasedElectricity, 'out1', HeatPump, 'in1')
-c2 = Connection(HeatPump, 'out1', Heating, 'in1')
-c3 = Connection(HeatPump, 'out2', Cooling, 'in1')
+c1 = Connection(PurchasedElectricity, 'out1', LossModel, 'in1')
+c2 = Connection(LossModel, 'out1', Heating, 'in1')
+c3 = Connection(LossModel, 'out2', Cooling, 'in1')
 
 network.add_conns(c1,c2,c3)
 
 m0 = 4.428
 c1.set_attr(m=m0)
 
-HeatPump.set_attr(COP=3)
+LossModel.set_attr(Loss=0.1)
 
 
 
@@ -48,6 +48,9 @@ for c in network.conns['object']:
 
 # arbitray values
 c1.set_attr(h=0,p=1,fluid={'FoodWater': 1})
+c2.set_attr(p=1)
+c3.set_attr(p=1)
+
 # c2 as split already propergate h, p and fluid
 # c3 as split already propergate h, p and fluid
 
