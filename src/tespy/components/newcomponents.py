@@ -684,16 +684,16 @@ class MassFactorVCC(Splitter):
             deriv=self.COP_deriv,
             func=self.COP_func,
             latex=self.mass_flow_func_doc,
-            num_eq=2
+            num_eq=1
         )
         return variables
 
     def get_mandatory_constraints(self):
         return {
-            # 'mass_flow_constraints': {
-            #     'func': self.mass_flow_func, 'deriv': self.mass_flow_deriv,
-            #     'constant_deriv': True, 'latex': self.mass_flow_func_doc,
-            #     'num_eq': 1},
+            'mass_flow_constraints': {
+                'func': self.mass_flow_func, 'deriv': self.mass_flow_deriv,
+                'constant_deriv': True, 'latex': self.mass_flow_func_doc,
+                'num_eq': 1},
             'fluid_constraints': {
                 'func': self.fluid_func, 'deriv': self.fluid_deriv,
                 'constant_deriv': True, 'latex': self.fluid_func_doc,
@@ -725,8 +725,7 @@ class MassFactorVCC(Splitter):
 
                 0 = p_\mathrm{in,1} \cdot pr - p_\mathrm{out,1}
         """
-        return [self.inl[0].m.val_SI * self.COP.val - self.outl[0].m.val_SI,
-                self.inl[0].m.val_SI * (1-self.COP.val) - self.outl[1].m.val_SI]
+        return self.inl[0].m.val_SI * self.COP.val - self.outl[0].m.val_SI
 
     def COP_deriv(self, increment_filter, k):
         r"""
@@ -742,8 +741,6 @@ class MassFactorVCC(Splitter):
         """
         self.jacobian[k  ,            0, 0] = self.COP.val
         self.jacobian[k  ,   self.num_i, 0] = -1
-        self.jacobian[k+1,            0, 0] = (1-self.COP.val)
-        self.jacobian[k+1, self.num_i+1, 0] = -1
 
     def calc_parameters(self):
         super().calc_parameters()
@@ -800,10 +797,10 @@ class MassFactorVCCWithPressureLoss(MassFactorVCC):
 
     def get_mandatory_constraints(self):
         return {
-            # 'mass_flow_constraints': {
-            #     'func': self.mass_flow_func, 'deriv': self.mass_flow_deriv,
-            #     'constant_deriv': True, 'latex': self.mass_flow_func_doc,
-            #     'num_eq': 1},
+            'mass_flow_constraints': {
+                'func': self.mass_flow_func, 'deriv': self.mass_flow_deriv,
+                'constant_deriv': True, 'latex': self.mass_flow_func_doc,
+                'num_eq': 1},
             'fluid_constraints': {
                 'func': self.fluid_func, 'deriv': self.fluid_deriv,
                 'constant_deriv': True, 'latex': self.fluid_func_doc,
@@ -842,16 +839,16 @@ class MassFactorLossModel(Splitter):
             deriv=self.Loss_deriv,
             func=self.Loss_func,
             latex=self.mass_flow_func_doc,
-            num_eq=2
+            num_eq=1
         )
         return variables
 
     def get_mandatory_constraints(self):
         return {
-            # 'mass_flow_constraints': {
-            #     'func': self.mass_flow_func, 'deriv': self.mass_flow_deriv,
-            #     'constant_deriv': True, 'latex': self.mass_flow_func_doc,
-            #     'num_eq': 1},
+            'mass_flow_constraints': {
+                'func': self.mass_flow_func, 'deriv': self.mass_flow_deriv,
+                'constant_deriv': True, 'latex': self.mass_flow_func_doc,
+                'num_eq': 1},
             'fluid_constraints': {
                 'func': self.fluid_func, 'deriv': self.fluid_deriv,
                 'constant_deriv': True, 'latex': self.fluid_func_doc,
@@ -871,14 +868,11 @@ class MassFactorLossModel(Splitter):
 
 
     def Loss_func(self):
-        return [self.inl[0].m.val_SI * (1-self.Loss.val) - self.outl[0].m.val_SI,
-                self.inl[0].m.val_SI * self.Loss.val - self.outl[1].m.val_SI]
+        return self.inl[0].m.val_SI * (1-self.Loss.val) - self.outl[0].m.val_SI
 
     def Loss_deriv(self, increment_filter, k):
         self.jacobian[k  ,            0, 0] = (1-self.Loss.val)
         self.jacobian[k  ,   self.num_i, 0] = -1
-        self.jacobian[k+1,            0, 0] = self.Loss.val
-        self.jacobian[k+1, self.num_i+1, 0] = -1
 
     def calc_parameters(self):
         super().calc_parameters()
@@ -935,10 +929,10 @@ class MassFactorLossModelWithPressureLoss(MassFactorLossModel):
 
     def get_mandatory_constraints(self):
         return {
-            # 'mass_flow_constraints': {
-            #     'func': self.mass_flow_func, 'deriv': self.mass_flow_deriv,
-            #     'constant_deriv': True, 'latex': self.mass_flow_func_doc,
-            #     'num_eq': 1},
+            'mass_flow_constraints': {
+                'func': self.mass_flow_func, 'deriv': self.mass_flow_deriv,
+                'constant_deriv': True, 'latex': self.mass_flow_func_doc,
+                'num_eq': 1},
             'fluid_constraints': {
                 'func': self.fluid_func, 'deriv': self.fluid_deriv,
                 'constant_deriv': True, 'latex': self.fluid_func_doc,
@@ -1024,10 +1018,10 @@ class MassFactorVCCEnergySupply(MassFactorVCC):
 
     def get_mandatory_constraints(self):
         return {
-            # 'mass_flow_constraints': {
-            #     'func': self.mass_flow_func, 'deriv': self.mass_flow_deriv,
-            #     'constant_deriv': True, 'latex': self.mass_flow_func_doc,
-            #     'num_eq': 1},
+            'mass_flow_constraints': {
+                'func': self.mass_flow_func, 'deriv': self.mass_flow_deriv,
+                'constant_deriv': True, 'latex': self.mass_flow_func_doc,
+                'num_eq': 1},
             'fluid_constraints': {
                 'func': self.fluid_func, 'deriv': self.fluid_deriv,
                 'constant_deriv': True, 'latex': self.fluid_func_doc,
@@ -1047,6 +1041,10 @@ class MassFactorLossModelEnergySupply(MassFactorLossModel):
 
     def get_mandatory_constraints(self):
         return {
+            'mass_flow_constraints': {
+                'func': self.mass_flow_func, 'deriv': self.mass_flow_deriv,
+                'constant_deriv': True, 'latex': self.mass_flow_func_doc,
+                'num_eq': 1},
             'fluid_constraints': {
                 'func': self.fluid_func, 'deriv': self.fluid_deriv,
                 'constant_deriv': True, 'latex': self.fluid_func_doc,

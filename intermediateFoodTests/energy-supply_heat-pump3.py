@@ -34,6 +34,7 @@ network.add_conns(c1,c2,c3)
 
 m0 = 4.428
 c1.set_attr(m=m0)
+#c2.set_attr(m=m0*3.5)
 
 HeatPump.set_attr(COP=3)
 
