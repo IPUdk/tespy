@@ -6,6 +6,8 @@ from tespy.tools.data_containers import ComponentPropertiesArray as dc_cpa
 from tespy.tools.data_containers import GroupedComponentProperties as dc_gcp
 from tespy.tools.fluid_properties import T_mix_ph
 
+from tespy.components.component import Component
+
 import numpy as np
 
 class DiabaticSimpleHeatExchanger(HeatExchangerSimple):
@@ -589,3 +591,90 @@ class dc_cp_FS(dc_cp):
         attributes = dc_cp.attr()
         attributes.update({'split_outlet' : str})
         return attributes
+
+
+
+class MassSplitterCOP(Splitter):
+
+    @staticmethod
+    def component():
+        return 'mass factor component hypothetical'
+
+    def get_variables(self):
+        variables = super().get_variables()
+        variables["COP"] = dc_cp(
+            min_val=0,
+            deriv=self.COP_deriv,
+            func=self.COP_func,
+            latex=self.mass_flow_func_doc,
+            num_eq=2
+        )
+        return variables
+
+    def get_mandatory_constraints(self):
+        return {
+            # 'mass_flow_constraints': {
+            #     'func': self.mass_flow_func, 'deriv': self.mass_flow_deriv,
+            #     'constant_deriv': True, 'latex': self.mass_flow_func_doc,
+            #     'num_eq': 1},
+            'fluid_constraints': {
+                'func': self.fluid_func, 'deriv': self.fluid_deriv,
+                'constant_deriv': True, 'latex': self.fluid_func_doc,
+                'num_eq': self.num_o * self.num_nw_fluids},
+            'energy_balance_constraints': {
+                'func': self.energy_balance_func,
+                'deriv': self.energy_balance_deriv,
+                'constant_deriv': True, 'latex': self.energy_balance_func_doc,
+                'num_eq': self.num_o},
+            'pressure_constraints': {
+                'func': self.pressure_equality_func,
+                'deriv': self.pressure_equality_deriv,
+                'constant_deriv': True,
+                'latex': self.pressure_equality_func_doc,
+                'num_eq': self.num_i + self.num_o - 1}
+        }
+
+
+    def COP_func(self):
+        r"""
+        Equation for COP.
+
+        Returns
+        -------
+        residual : float
+            Residual value of equation.
+
+            .. math::
+
+                0 = p_\mathrm{in,1} \cdot pr - p_\mathrm{out,1}
+        """
+        return [self.inl[0].m.val_SI * self.COP.val - self.outl[0].m.val_SI,
+                self.inl[0].m.val_SI * (1-self.COP.val) - self.outl[1].m.val_SI]
+
+    def COP_deriv(self, increment_filter, k):
+        r"""
+        Calculate the partial derivatives for combustion pressure ratio.
+
+        Parameters
+        ----------
+        increment_filter : ndarray
+            Matrix for filtering non-changing variables.
+
+        k : int
+            Position of equation in Jacobian matrix.
+        """
+        self.jacobian[k  ,            0, 0] = self.COP.val
+        self.jacobian[k  ,   self.num_i, 0] = -1
+        self.jacobian[k+1,            0, 0] = (1-self.COP.val)
+        self.jacobian[k+1, self.num_i+1, 0] = -1
+
+    # def calc_parameters(self):
+
+    #     self.pr.val = self.outl[0].p.val_SI / self.inl[0].p.val_SI
+    #     for i in range(self.num_i):
+    #         if self.inl[i].p.val < self.outl[0].p.val:
+    #             msg = (
+    #                 f"The pressure at inlet {i + 1} is lower than the pressure "
+    #                 f"at the outlet of component {self.label}."
+    #             )
+    #             logging.warning(msg)
