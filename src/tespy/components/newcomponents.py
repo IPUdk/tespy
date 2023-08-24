@@ -103,11 +103,11 @@ class HeatExchangerSimpleLossFactor(HeatExchangerSimple):
 
     def get_variables(self):
         variables = super().get_variables()
-        variables["LF"] = dc_cp(min_val=0, val=0, max_val=1)
+        variables["LF"] = dc_cp(min_val=0, val=0, max_val=1,is_result=True)
         variables["Q_loss"] = dc_cp(is_result=True)
         variables["Q_total"] = dc_cp(is_result=True)
         variables["energy_group"] = dc_gcp(
-            elements=['Q_total', 'LF'],
+            elements=['Q_total', 'LF', 'Q_loss'],
             num_eq=1,
             latex=self.energy_balance_func_doc,
             func=self.energy_balance2_func, deriv=self.energy_balance2_deriv
@@ -128,7 +128,12 @@ class HeatExchangerSimpleLossFactor(HeatExchangerSimple):
 
                 0 =\dot{m}_{in}\cdot\left( h_{out}-h_{in}\right) -\dot{Q}
         """
-        return self.inl[0].m.val_SI * (self.outl[0].h.val_SI - self.inl[0].h.val_SI)*(1+self.LF.val) - self.Q_total.val
+        # self.Q_loss.val is negative and Q_total is positive (and vice versa)
+        if self.Q_loss.is_var:
+            self.LF.val = -self.Q_loss/self.Q.val
+        else:
+            return self.inl[0].m.val_SI * (self.outl[0].h.val_SI - self.inl[0].h.val_SI)*(1+self.LF.val) - self.Q_total.val
+        
 
     def energy_balance2_deriv(self, increment_filter, k):
         r"""
@@ -142,6 +147,8 @@ class HeatExchangerSimpleLossFactor(HeatExchangerSimple):
         k : int
             Position of derivatives in Jacobian matrix (k-th equation).
         """
+        if self.Q_loss.is_var:
+            self.LF.val = -self.Q_loss/self.Q.val
         self.jacobian[k, 0, 0] = (self.outl[0].h.val_SI - self.inl[0].h.val_SI)*(1+self.LF.val)
         self.jacobian[k, 0, 2] = -self.inl[0].m.val_SI*(1+self.LF.val)
         self.jacobian[k, 1, 2] = self.inl[0].m.val_SI*(1+self.LF.val)
@@ -155,15 +162,17 @@ class HeatExchangerSimpleLossFactor(HeatExchangerSimple):
     def calc_parameters(self):
         super().calc_parameters()
 
-        if self.LF.is_set:
-            self.Q_total.val = self.Q.val * (1+self.LF.val)
-            self.Q_loss.val = self.Q_total.val-self.Q.val
-        
         if self.Q_total.is_set:
-            self.Q_loss.val = self.Q_total.val-self.Q.val
-            self.LF.val = self.Q_loss.val / self.Q_total.val
-            
-            
+            self.Q_loss.val = self.Q.val-self.Q_total.val
+            self.LF.val = -self.Q_loss.val / self.Q.val
+        elif self.LF.is_set:
+            self.Q_total.val = self.Q.val * (1+self.LF.val)
+            self.Q_loss.val = self.Q.val-self.Q_total.val
+        else:
+            self.Q_total.val = self.Q.val-self.Q_loss.val
+            self.LF.val = -self.Q_loss.val/self.Q.val
+          
+
 
 class MergeWithPressureLoss(Merge):
 
