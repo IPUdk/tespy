@@ -12,7 +12,7 @@ import numpy as np
 from tespy.tools.data_containers import ComponentProperties as dc_cp
 from tespy.tools.data_containers import GroupedComponentProperties as dc_gcp
 
-from tespy.components.newcomponents import DiabaticSimpleHeatExchanger,MergeWithPressureLoss,SeparatorWithSpeciesSplits
+from tespy.components.newcomponents import DiabaticSimpleHeatExchangerLossFactor,MergeWithPressureLoss,SeparatorWithSpeciesSplits
 
 
 
@@ -25,7 +25,7 @@ nw = Network(fluids=fluids, p_unit="bar", T_unit="C")
 so = Source("Source")
 #  Variant 2: Q is m (h_2 - h_1), Q_total is taking efficiency into account and represents the heat transfer over system
 # boundary. For heat transfer into the system: Q = Q_total * eta, for heat transfer from the system: Q_total = Q * eta
-he = DiabaticSimpleHeatExchanger("Heater")
+he = DiabaticSimpleHeatExchangerLossFactor("Heater")
 si = Sink("Sink")
 
 c1 = Connection(so, "out1", he, "in1", label="1")
@@ -40,7 +40,7 @@ c2.set_attr(T=50)
 # set pressure ratios of heater and merge
 he.set_attr(pr=1)
 
-he.set_attr(eta=1) # MRK so eta is (1-hlf) heat loss factor
+he.set_attr(LF=0.1) # MRK so eta is (1-hlf) heat loss factor
 
 nw.solve("design")
 nw.print_results()

@@ -95,6 +95,71 @@ class DiabaticSimpleHeatExchanger(HeatExchangerSimple):
             self.Q_total.val = self.Q.val - self.Q_loss.val
 
 
+class DiabaticSimpleHeatExchangerLossFactor(HeatExchangerSimple):
+
+    @staticmethod
+    def component():
+        return 'diabatic simple heat exchanger'
+
+    def get_variables(self):
+        variables = super().get_variables()
+        variables["LF"] = dc_cp(min_val=1e-5, val=1, max_val=1)
+        variables["Q_loss"] = dc_cp(max_val=0, val=0, is_result=True)
+        variables["Q_total"] = dc_cp(is_result=True)
+        variables["energy_group"] = dc_gcp(
+            elements=['Q_total', 'LF'],
+            num_eq=1,
+            latex=self.energy_balance_func_doc,
+            func=self.energy_balance2_func, deriv=self.energy_balance2_deriv
+        )
+
+        return variables
+
+    def energy_balance2_func(self):
+        r"""
+        Equation for pressure drop calculation.
+
+        Returns
+        -------
+        residual : float
+            Residual value of equation:
+
+            .. math::
+
+                0 =\dot{m}_{in}\cdot\left( h_{out}-h_{in}\right) -\dot{Q}
+        """
+        return self.inl[0].m.val_SI * (self.outl[0].h.val_SI - self.inl[0].h.val_SI)*(1+self.LF.val) - self.Q_total.val
+
+    def energy_balance2_deriv(self, increment_filter, k):
+        r"""
+        Calculate partial derivatives of energy balance.
+
+        Parameters
+        ----------
+        increment_filter : ndarray
+            Matrix for filtering non-changing variables.
+
+        k : int
+            Position of derivatives in Jacobian matrix (k-th equation).
+        """
+        self.jacobian[k, 0, 0] = (self.outl[0].h.val_SI - self.inl[0].h.val_SI)*(1+self.LF.val)
+        self.jacobian[k, 0, 2] = -self.inl[0].m.val_SI*(1+self.LF.val)
+        self.jacobian[k, 1, 2] = self.inl[0].m.val_SI*(1+self.LF.val)
+        # custom variable Q
+        if self.Q_total.is_var:
+            self.jacobian[k, 2 + self.Q.var_pos, 0] = -1
+
+        if self.LF.is_var:
+            self.jacobian[k, 2 + self.LF.var_pos, 0] = self.inl[0].m.val_SI * (self.outl[0].h.val_SI - self.inl[0].h.val_SI)
+
+    def calc_parameters(self):
+        super().calc_parameters()
+
+        if self.LF.is_set:
+            self.Q_total.val = self.Q.val * (1+self.LF.val)
+            self.Q_loss.val = self.Q_total.val-self.Q.val
+            
+
 class MergeWithPressureLoss(Merge):
 
     @staticmethod
@@ -486,6 +551,90 @@ class SeparatorWithSpeciesSplitsAndDeltaTAndPr(SeparatorWithSpeciesSplitsAndDelt
             #     'deriv': self.energy_balance_deriv,
             #     'constant_deriv': False, 'latex': self.energy_balance_func_doc,
             #     'num_eq': self.num_o},
+            # 'pressure_constraints': {
+            #     'func': self.pressure_equality_func,
+            #     'deriv': self.pressure_equality_deriv,
+            #     'constant_deriv': True,
+            #     'latex': self.pressure_equality_func_doc,
+            #     'num_eq': self.num_i + self.num_o - 1}
+        }
+
+
+
+class SeparatorWithSpeciesSplitsAndPr(SeparatorWithSpeciesSplits):
+
+    @staticmethod
+    def component():
+        return 'separator with species flow splits and dT and Pr on outlets'
+
+    def get_variables(self):
+        variables = super().get_variables()
+        variables["pr"] = dc_cp(
+            min_val=0,
+            deriv=self.pr_deriv,
+            func=self.pr_func,
+            latex=self.pr_func_doc,
+            num_eq=1
+        )        
+        return variables
+
+    def pr_func(self):
+        r"""
+        Equation for pressure drop.
+
+        Returns
+        -------
+        residual : float
+            Residual value of equation.
+
+            .. math::
+
+                0 = p_\mathrm{in,1} \cdot pr - p_\mathrm{out,1}
+        """
+        return self.inl[0].p.val_SI * self.pr.val - self.outl[0].p.val_SI
+
+    def pr_deriv(self, increment_filter, k):
+        r"""
+        Calculate the partial derivatives for combustion pressure ratio.
+
+        Parameters
+        ----------
+        increment_filter : ndarray
+            Matrix for filtering non-changing variables.
+
+        k : int
+            Position of equation in Jacobian matrix.
+        """
+        self.jacobian[k, 0, 1] = self.pr.val
+        self.jacobian[k, self.num_i, 1] = -1
+
+    def calc_parameters(self):
+        super().calc_parameters()
+        self.pr.val = self.outl[0].p.val_SI / self.inl[0].p.val_SI
+        for i in range(self.num_i):
+            if self.inl[i].p.val < self.outl[0].p.val:
+                msg = (
+                    f"The pressure at inlet {i + 1} is lower than the pressure "
+                    f"at the outlet of component {self.label}."
+                )
+                logging.warning(msg)
+        
+
+    def get_mandatory_constraints(self):
+        return {
+            'mass_flow_constraints': {
+                'func': self.mass_flow_func, 'deriv': self.mass_flow_deriv,
+                'constant_deriv': True, 'latex': self.mass_flow_func_doc,
+                'num_eq': 1},
+            'fluid_constraints': {
+                'func': self.fluid_func, 'deriv': self.fluid_deriv,
+                'constant_deriv': False, 'latex': self.fluid_func_doc,
+                'num_eq': self.num_nw_fluids},
+            'energy_balance_constraints': {
+                'func': self.energy_balance_func,
+                'deriv': self.energy_balance_deriv,
+                'constant_deriv': False, 'latex': self.energy_balance_func_doc,
+                'num_eq': self.num_o},
             # 'pressure_constraints': {
             #     'func': self.pressure_equality_func,
             #     'deriv': self.pressure_equality_deriv,
