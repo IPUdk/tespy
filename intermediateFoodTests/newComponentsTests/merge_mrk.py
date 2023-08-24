@@ -17,7 +17,7 @@ from tespy.components.newcomponents import DiabaticSimpleHeatExchanger,MergeWith
 # %%
 
 # caution, must write "Water" (capital W) in INCOMP backend -> CoolProp bug? Intentional?
-fluids = ["INCOMP::Water", "INCOMP::T66"]
+fluids = ["INCOMP::FoodWater", "INCOMP::FoodProtein"]
 
 
 nw = Network(fluids=fluids, p_unit="bar", T_unit="C")
@@ -35,12 +35,12 @@ c4 = Connection(me, "out1", si, "in1", label="4")
 nw.add_conns(c1, c3, c4)
 
 # set some generic data for starting values
-c1.set_attr(m=1, p=1.2, h=0.5e5, fluid={"Water": 0.9, "T66": 0.1})
+c1.set_attr(m=1, p=2.1, h=0.5e5, fluid={"FoodWater": 0.9, "FoodProtein": 0.1})
 # mix with pure water
-c3.set_attr(m=0.05, p=1.1, h=0.5e5, fluid={"Water": 1, "T66": 0})
+c3.set_attr(m=0.05, p=2.2, h=0.5e5, fluid={"FoodWater": 1, "FoodProtein": 0})
 
 # set pressure ratios of heater and merge
-me.set_attr(pr=0.9)
+me.set_attr(deltaP=1)
 #c4.set_attr(p=1)
 
 nw.solve("design")

@@ -173,13 +173,13 @@ class MergeWithPressureLoss(Merge):
 
     def get_variables(self):
         variables = super().get_variables()
-        variables["pr"] = dc_cp(
+        variables["deltaP"] = dc_cp(
             min_val=0,
             deriv=self.pr_deriv,
             func=self.pr_func,
             latex=self.pr_func_doc,
-            num_eq=1
-        )
+            num_eq=1,
+        )         
         return variables
 
     def get_mandatory_constraints(self):
@@ -212,7 +212,8 @@ class MergeWithPressureLoss(Merge):
 
                 0 = p_\mathrm{in,1} \cdot pr - p_\mathrm{out,1}
         """
-        return self.inl[0].p.val_SI * self.pr.val - self.outl[0].p.val_SI
+        p_in_min = min([i.p.val_SI for i in self.inl])
+        return p_in_min - self.deltaP.val*1e5 - self.outl[0].p.val_SI
 
     def pr_deriv(self, increment_filter, k):
         r"""
@@ -226,20 +227,24 @@ class MergeWithPressureLoss(Merge):
         k : int
             Position of equation in Jacobian matrix.
         """
-        self.jacobian[k, 0, 1] = self.pr.val
+        p_in = [i.p.val_SI for i in self.inl]
+        p_min_index = p_in.index(min(p_in))
+
+        self.jacobian[k, p_min_index, 1] = 1 #self.pr.val
         self.jacobian[k, self.num_i, 1] = -1
 
-    def calc_parameters(self):
-        super().calc_parameters()
+    # def calc_parameters(self):
+    #     super().calc_parameters()
 
-        self.pr.val = self.outl[0].p.val_SI / self.inl[0].p.val_SI
-        for i in range(self.num_i):
-            if self.inl[i].p.val < self.outl[0].p.val:
-                msg = (
-                    f"The pressure at inlet {i + 1} is lower than the pressure "
-                    f"at the outlet of component {self.label}."
-                )
-                logging.warning(msg)
+    #     self.pr.val = self.outl[0].p.val_SI / self.inl[0].p.val_SI
+    #     for i in range(self.num_i):
+    #         if self.inl[i].p.val < self.outl[0].p.val:
+    #             msg = (
+    #                 f"The pressure at inlet {i + 1} is lower than the pressure "
+    #                 f"at the outlet of component {self.label}."
+    #             )
+    #             logging.warning(msg)
+
 
 class SplitterWithPressureLoss(Splitter):
 
@@ -249,13 +254,13 @@ class SplitterWithPressureLoss(Splitter):
 
     def get_variables(self):
         variables = super().get_variables()
-        variables["pr"] = dc_cp(
+        variables["deltaP"] = dc_cp(
             min_val=0,
             deriv=self.pr_deriv,
             func=self.pr_func,
             latex=self.pr_func_doc,
-            num_eq=1
-        )
+            num_eq=self.num_out,
+        )   
         return variables
 
     def get_mandatory_constraints(self):
@@ -288,7 +293,12 @@ class SplitterWithPressureLoss(Splitter):
 
                 0 = p_\mathrm{in,1} \cdot pr - p_\mathrm{out,1}
         """
-        return self.inl[0].p.val_SI * self.pr.val - self.outl[0].p.val_SI
+        #return self.inl[0].p.val_SI * self.pr.val - self.outl[0].p.val_SI
+        residual = []
+        p_in = self.inl[0].p.val_SI
+        for o in self.outl:
+            residual += [p_in - self.deltaP.val*1e5 - o.p.val_SI]
+        return residual        
 
     def pr_deriv(self, increment_filter, k):
         r"""
@@ -302,20 +312,26 @@ class SplitterWithPressureLoss(Splitter):
         k : int
             Position of equation in Jacobian matrix.
         """
-        self.jacobian[k, 0, 1] = self.pr.val
-        self.jacobian[k, self.num_i, 1] = -1
+        # self.jacobian[k, 0, 1] = self.pr.val
+        # self.jacobian[k, self.num_i, 1] = -1
+        j = 0
+        for c in self.outl:
+            self.jacobian[k, 0, 1] = 1
+            self.jacobian[k, j + 1, 1] = -1 
+            j += 1
+            k += 1        
 
-    def calc_parameters(self):
-        super().calc_parameters()
+    # def calc_parameters(self):
+    #     super().calc_parameters()
 
-        self.pr.val = self.outl[0].p.val_SI / self.inl[0].p.val_SI
-        for i in range(self.num_i):
-            if self.inl[i].p.val < self.outl[0].p.val:
-                msg = (
-                    f"The pressure at inlet {i + 1} is lower than the pressure "
-                    f"at the outlet of component {self.label}."
-                )
-                logging.warning(msg)
+    #     self.pr.val = self.outl[0].p.val_SI / self.inl[0].p.val_SI
+    #     for i in range(self.num_i):
+    #         if self.inl[i].p.val < self.outl[0].p.val:
+    #             msg = (
+    #                 f"The pressure at inlet {i + 1} is lower than the pressure "
+    #                 f"at the outlet of component {self.label}."
+    #             )
+    #             logging.warning(msg)
 
 class SeparatorWithSpeciesSplits(Separator):
 
