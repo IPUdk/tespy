@@ -20,7 +20,7 @@ fluids = ["INCOMP::FoodWater", "INCOMP::FoodProtein"]
 nw = Network(fluids=fluids, m_unit='kg / s', p_unit='bar', T_unit='C',h_unit='kJ / kg', h_range=[-1e2,4e3], iterinfo=True)
 
 so = Source("Source")
-se = SeparatorWithSpeciesSplitsAndPr("Separator") #,num_out=2)
+se = SeparatorWithSpeciesSplitsAndPr("Separator",num_out=2)
 si1 = Sink("Sink 1")
 si2 = Sink("Sink 2")
 
@@ -50,8 +50,10 @@ se.set_attr(SFS={
 
 
 # Now it is possible to set the temperatures out of the separator differently
-c2.set_attr(p=5)
-c3.set_attr(p=5)
+# c2.set_attr(p=5)
+# c3.set_attr(p=4)
+
+se.set_attr(deltaP=0)
 
 # Or to use a deltaT array instead
 #se.set_attr(deltaT=[-10,-20])
@@ -72,8 +74,8 @@ m_FoodProtein_c2 = c2.m.val * c2.fluid.val['FoodProtein']
 
 print(f"\n Species flow split is {m_FoodProtein_c2/m_FoodProtein_c1}")
 
-print(f"\n heat flows are  {se.Q.val}")
-print(se.Qout.val)
+#print(f"\n heat flows are  {se.Q.val}")
+#print(se.Qout.val)
 
 print(f"\n")
 
