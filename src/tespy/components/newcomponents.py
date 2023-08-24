@@ -103,8 +103,8 @@ class HeatExchangerSimpleLossFactor(HeatExchangerSimple):
 
     def get_variables(self):
         variables = super().get_variables()
-        variables["LF"] = dc_cp(min_val=1e-5, val=1, max_val=1)
-        variables["Q_loss"] = dc_cp(max_val=0, val=0, is_result=True)
+        variables["LF"] = dc_cp(min_val=0, val=0, max_val=1)
+        variables["Q_loss"] = dc_cp(is_result=True)
         variables["Q_total"] = dc_cp(is_result=True)
         variables["energy_group"] = dc_gcp(
             elements=['Q_total', 'LF'],
@@ -158,6 +158,11 @@ class HeatExchangerSimpleLossFactor(HeatExchangerSimple):
         if self.LF.is_set:
             self.Q_total.val = self.Q.val * (1+self.LF.val)
             self.Q_loss.val = self.Q_total.val-self.Q.val
+        
+        if self.Q_total.is_set:
+            self.Q_loss.val = self.Q_total.val-self.Q.val
+            self.LF.val = self.Q_loss.val / self.Q_total.val
+            
             
 
 class MergeWithPressureLoss(Merge):

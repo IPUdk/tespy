@@ -45,7 +45,7 @@ c2.set_attr(fluid={"FoodWater": 0.8, "FoodProtein": 0.2})
 #c3.set_attr(fluid={"FoodProtein": 0.1})
 
 se.set_attr(SFS={
-    'val': 0.6, 'is_set': True, 
+    'val': 0.65, 'is_set': True, 
     'split_fluid' : 'FoodProtein', 'split_outlet' : "out1"})
 
 
@@ -73,6 +73,8 @@ m_FoodProtein_c2 = c2.m.val * c2.fluid.val['FoodProtein']
 print(f"\n Species flow split is {m_FoodProtein_c2/m_FoodProtein_c1}")
 
 print(f"\n heat flows are  {se.Q.val}")
+print(se.Qout.val)
+
 print(f"\n")
 
 
