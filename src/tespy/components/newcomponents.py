@@ -95,7 +95,7 @@ class DiabaticSimpleHeatExchanger(HeatExchangerSimple):
             self.Q_total.val = self.Q.val - self.Q_loss.val
 
 
-class DiabaticSimpleHeatExchangerLossFactor(HeatExchangerSimple):
+class HeatExchangerSimpleLossFactor(HeatExchangerSimple):
 
     @staticmethod
     def component():
