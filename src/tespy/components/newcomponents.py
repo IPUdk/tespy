@@ -564,14 +564,17 @@ class SeparatorWithSpeciesSplitsAndDeltaT(SeparatorWithSpeciesSplits):
             i+=1
         return residual
 
-
     def calc_parameters(self):
         super().calc_parameters()
         self.Q_loss.val = np.sum([o.m.val_SI * (o.h.val_SI - self.inl[0].h.val_SI) for o in self.outl])
-
-
-
-
+        
+        Tmin = min([i.T.val_SI for i in self.outl])
+        Tmax = max([i.T.val_SI for i in self.outl])
+        if abs(self.inl[0].T.val_SI - Tmin) >= abs(self.inl[0].T.val_SI - Tmax):
+            self.deltaT.val = self.inl[0].T.val_SI - Tmin
+        else:
+            self.deltaT.val = self.inl[0].T.val_SI - Tmax
+        # self.inl[0].T.val_SI - min([i.T.val_SI for i in self.outl])
 
 class SeparatorWithSpeciesSplitsAndPr(SeparatorWithSpeciesSplits):
 
@@ -628,17 +631,16 @@ class SeparatorWithSpeciesSplitsAndPr(SeparatorWithSpeciesSplits):
             j += 1
             k += 1
 
-    # def calc_parameters(self):
-    #     super().calc_parameters()
-    #     self.pr.val = self.outl[0].p.val_SI / self.inl[0].p.val_SI
-    #     for i in range(self.num_i):
-    #         if self.inl[i].p.val < self.outl[0].p.val:
-    #             msg = (
-    #                 f"The pressure at inlet {i + 1} is lower than the pressure "
-    #                 f"at the outlet of component {self.label}."
-    #             )
-    #             logging.warning(msg)
-        
+    def calc_parameters(self):
+        super().calc_parameters()
+
+        Pmin = min([i.p.val_SI for i in self.outl])
+        Pmax = max([i.p.val_SI for i in self.outl])
+        if abs(self.inl[0].p.val_SI - Pmin) >= abs(self.inl[0].p.val_SI - Pmax):
+            self.deltaP.val = (self.inl[0].p.val_SI - Pmin)/1e5
+        else:
+            self.deltaP.val = (self.inl[0].p.val_SI - Pmax)/1e5
+        #self.deltaP.val = (self.inl[0].p.val_SI - min([i.p.val_SI for i in self.outl]))/1e5
 
     def get_mandatory_constraints(self):
         return {
