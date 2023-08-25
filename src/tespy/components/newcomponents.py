@@ -95,7 +95,60 @@ class DiabaticSimpleHeatExchanger(HeatExchangerSimple):
             self.Q_total.val = self.Q.val - self.Q_loss.val
 
 
-class HeatExchangerSimpleLossFactor(HeatExchangerSimple):
+class HeatExchangerSimpleDeltaP(HeatExchangerSimple):
+
+    @staticmethod
+    def component():
+        return 'diabatic simple heat exchanger'
+
+    def get_variables(self):
+        variables = super().get_variables()
+        variables["deltaP"] = dc_cp(
+            min_val=0,
+            deriv=self.pr_deriv,
+            func=self.pr_func,
+            latex=self.pr_func_doc,
+            num_eq=1,
+        ) 
+        return variables
+         
+    def pr_func(self):
+        r"""
+        Equation for pressure drop.
+
+        Returns
+        -------
+        residual : float
+            Residual value of equation.
+
+            .. math::
+
+                0 = p_\mathrm{in,1} \cdot pr - p_\mathrm{out,1}
+        """
+        
+        return self.inl[0].p.val_SI - self.deltaP.val*1e5 - self.outl[0].p.val_SI
+
+    def pr_deriv(self, increment_filter, k):
+        r"""
+        Calculate the partial derivatives for combustion pressure ratio.
+
+        Parameters
+        ----------
+        increment_filter : ndarray
+            Matrix for filtering non-changing variables.
+
+        k : int
+            Position of equation in Jacobian matrix.
+        """
+        self.jacobian[k, 0, 1] = 1 #self.pr.val
+        self.jacobian[k, self.num_i, 1] = -1
+
+    def calc_parameters(self):
+        super().calc_parameters()
+        self.deltaP.val = (self.inl[0].p.val_SI - self.outl[0].p.val_SI)/1e5
+  
+
+class HeatExchangerSimpleDeltaPLossFactor(HeatExchangerSimpleDeltaP):
 
     @staticmethod
     def component():
