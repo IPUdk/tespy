@@ -15,34 +15,26 @@ import numpy as np
 
 from tespy.components import Condenser
 from tespy.components import HeatExchanger
-from tespy.components import HeatExchangerSimple
 from tespy.components import ParabolicTrough
+from tespy.components import SimpleHeatExchanger
 from tespy.components import Sink
 from tespy.components import SolarCollector
 from tespy.components import Source
 from tespy.connections import Bus
 from tespy.connections import Connection
 from tespy.networks import Network
-from tespy.tools.fluid_properties import T_bp_p
-
-
-def convergence_check(lin_dep):
-    """Check convergence status of a simulation."""
-    msg = 'Calculation did not converge!'
-    assert lin_dep is False, msg
+from tespy.tools.fluid_properties import T_sat_p
 
 
 class TestHeatExchangers:
 
-    def setup(self):
+    def setup_method(self):
 
-        self.nw = Network(
-            ['H2O', 'Ar', 'INCOMP::S800'], T_unit='C', p_unit='bar',
-            v_unit='m3 / s')
+        self.nw = Network(T_unit='C', p_unit='bar', v_unit='m3 / s')
         self.inl1 = Source('inlet 1')
         self.outl1 = Sink('outlet 1')
 
-    def setup_HeatExchangerSimple_network(self, instance):
+    def setup_SimpleHeatExchanger_network(self, instance):
 
         self.c1 = Connection(self.inl1, 'out1', instance, 'in1')
         self.c2 = Connection(instance, 'out1', self.outl1, 'in1')
@@ -61,90 +53,87 @@ class TestHeatExchangers:
 
         self.nw.add_conns(self.c1, self.c2, self.c3, self.c4)
 
-    def test_HeatExchangerSimple(self):
+    def test_SimpleHeatExchanger(self):
         """Test component properties of simple heat exchanger."""
-        instance = HeatExchangerSimple('heat exchanger')
-        self.setup_HeatExchangerSimple_network(instance)
-        fl = {'Ar': 0, 'H2O': 1, 'S800': 0}
+        instance = SimpleHeatExchanger('heat exchanger')
+        self.setup_SimpleHeatExchanger_network(instance)
+        fl = {'H2O': 1}
         self.c1.set_attr(fluid=fl, m=1, p=10, T=100)
         # trigger heat exchanger parameter groups
-        instance.set_attr(hydro_group='HW', L=100, ks=100, pr=0.99, Tamb=20)
+        instance.set_attr(L=100, ks_HW=100, pr=0.99, Tamb=20)
 
         # test grouped parameter settings with missing parameters
-        instance.hydro_group.is_set = True
+        instance.darcy_group.is_set = True
         instance.kA_group.is_set = True
         instance.kA_char_group.is_set = True
         self.nw.solve('design', init_only=True)
-        msg = ('Hydro group must no be set, if one parameter is missing!')
-        assert instance.hydro_group.is_set is False, msg
+        msg = ('Darcy group must no be set, if one parameter is missing!')
+        assert not instance.darcy_group.is_set, msg
         msg = ('kA group must no be set, if one parameter is missing!')
-        assert instance.kA_group.is_set is False, msg
+        assert not instance.kA_group.is_set, msg
         msg = ('kA char group must no be set, if one parameter is missing!')
-        assert instance.kA_char_group.is_set is False, msg
+        assert not instance.kA_char_group.is_set, msg
 
         # test diameter calculation from specified dimensions (as pipe)
         # with Hazen-Williams method
-        instance.set_attr(hydro_group='HW', D='var', L=100,
-                          ks=100, pr=0.99, Tamb=20)
+        instance.set_attr(D='var', L=100, ks_HW=100, pr=0.99, Tamb=20)
         b = Bus('heat', P=-1e5)
         b.add_comps({'comp': instance})
         self.nw.add_busses(b)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         pr = round(self.c2.p.val_SI / self.c1.p.val_SI, 3)
-        msg = ('Value of pressure ratio must be ' + str(pr) + ', is ' +
-               str(instance.pr.val) + '.')
+        msg = f"Value of pressure ratio must be {pr}, is {instance.pr.val}."
         assert pr == round(instance.pr.val, 3), msg
 
         # make zeta system variable and use previously calculated diameter
         # to calculate zeta. The value for zeta must not change
         zeta = round(instance.zeta.val, 0)
-        instance.set_attr(D=instance.D.val, zeta='var', pr=np.nan)
+        instance.set_attr(D=instance.D.val, zeta='var', pr=None)
         instance.D.is_var = False
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
-        msg = ('Value of zeta must be ' + str(zeta) + ', is ' +
-               str(round(instance.zeta.val, 0)) + '.')
+        self.nw._convergence_check()
+        msg = f"Value of pressure ratio must be {zeta}, is {instance.zeta.val}."
         assert zeta == round(instance.zeta.val, 0), msg
 
         # same test with pressure ratio as sytem variable
         pr = round(instance.pr.val, 3)
-        instance.set_attr(zeta=np.nan, pr='var')
+        instance.set_attr(zeta=None, pr='var')
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
-        msg = ('Value of pressure ratio must be ' + str(pr) +
-               ', is ' + str(round(instance.pr.val, 3)) + '.')
+        self.nw._convergence_check()
+        msg = f"Value of pressure ratio must be {pr}, is {instance.pr.val}."
         assert pr == round(instance.pr.val, 3), msg
 
         # test heat transfer coefficient as variable of the system (ambient
         # temperature required)
-        instance.set_attr(kA='var', pr=np.nan)
+        instance.set_attr(kA='var', pr=None)
         b.set_attr(P=-5e4)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
 
         # due to heat output being half of reference (for Tamb) kA should be
         # somewhere near to that (actual value is 677)
-        msg = ('Value of heat transfer coefficient must be 677, is ' +
-               str(instance.kA.val) + '.')
+        msg = (
+            "Value of heat transfer coefficient must be 677, is "
+            f"{instance.kA.val}."
+        )
         assert 677 == round(instance.kA.val, 0), msg
 
         # test heat transfer as variable of the system
-        instance.set_attr(Q='var', kA=np.nan)
+        instance.set_attr(Q='var', kA=None)
         Q = -5e4
         b.set_attr(P=Q)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
-        msg = ('Value of heat transfer must be ' + str(Q) +
-               ', is ' + str(instance.Q.val) + '.')
+        self.nw._convergence_check()
+        msg = f"Value of heat transfer must be {Q}, is {instance.Q.val}."
         assert Q == round(instance.Q.val, 0), msg
 
         # test kA as network results parameter
         instance.set_attr(Q=-5e4, Tamb=None)
         b.set_attr(P=None)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
-        kA_network = self.nw.results['HeatExchangerSimple'].loc[
+        self.nw._convergence_check()
+        kA_network = self.nw.results['SimpleHeatExchanger'].loc[
             instance.label, 'kA']
         print(kA_network)
         msg = 'kA value must not be included in network results.'
@@ -154,7 +143,7 @@ class TestHeatExchangers:
         # test kA as network results parameter
         instance.set_attr(Tamb=20)
         self.nw.solve('design')
-        kA_network = self.nw.results['HeatExchangerSimple'].loc[
+        kA_network = self.nw.results['SimpleHeatExchanger'].loc[
             instance.label, 'kA']
         kA_comp = instance.kA.val
         msg = 'kA value needs to be identical on network and component level.'
@@ -163,26 +152,25 @@ class TestHeatExchangers:
     def test_ParabolicTrough(self):
         """Test component properties of parabolic trough."""
         instance = ParabolicTrough('parabolic trough')
-        self.setup_HeatExchangerSimple_network(instance)
-        fl = {'Ar': 0, 'H2O': 0, 'S800': 1}
-        self.c1.set_attr(fluid=fl, p=2, T=200)
+        self.setup_SimpleHeatExchanger_network(instance)
+        self.c1.set_attr(fluid={'INCOMP::S800': 1}, p=2, T=200)
         self.c2.set_attr(T=350)
 
         # test grouped parameter settings with missing parameters
-        instance.hydro_group.is_set = True
+        instance.darcy_group.is_set = True
         instance.energy_group.is_set = True
         self.nw.solve('design', init_only=True)
-        msg = ('Hydro group must no be set, if one parameter is missing!')
-        assert instance.hydro_group.is_set is False, msg
+        msg = ('Darcy group must no be set, if one parameter is missing!')
+        assert not instance.darcy_group.is_set, msg
         msg = ('Energy group must no be set, if one parameter is missing!')
-        assert instance.energy_group.is_set is False, msg
+        assert not instance.energy_group.is_set, msg
 
         # test solar collector params as system variables
         instance.set_attr(
             pr=1, aoi=10, doc=0.95, Q=1e6, Tamb=25, A='var', eta_opt=0.816,
             c_1=0.0622, c_2=0.00023, E=8e2, iam_1=-1.59e-3, iam_2=9.77e-5)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         # heat loss must be identical to E * A - Q (internal heat loss
         # calculation)
         T_diff = (self.c2.T.val + self.c1.T.val) / 2 - instance.Tamb.val
@@ -206,7 +194,7 @@ class TestHeatExchangers:
         self.nw.solve('design')
         instance.set_attr(A=area)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         assert Q_loss == round(instance.Q_loss.val, 0), msg
 
         # test all parameters of the energy group: eta_opt
@@ -214,7 +202,7 @@ class TestHeatExchangers:
         self.nw.solve('design')
         instance.set_attr(E=8e2)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         assert Q_loss == round(instance.Q_loss.val, 0), msg
 
         # test all parameters of the energy group: c_1
@@ -222,7 +210,7 @@ class TestHeatExchangers:
         self.nw.solve('design')
         instance.set_attr(E=8e2)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         assert Q_loss == round(instance.Q_loss.val, 0), msg
 
         # test all parameters of the energy group: c_2
@@ -230,7 +218,7 @@ class TestHeatExchangers:
         self.nw.solve('design')
         instance.set_attr(E=8e2)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         assert Q_loss == round(instance.Q_loss.val, 0), msg
 
         # test all parameters of the energy group: iam_1
@@ -238,7 +226,7 @@ class TestHeatExchangers:
         self.nw.solve('design')
         instance.set_attr(E=8e2)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         assert Q_loss == round(instance.Q_loss.val, 0), msg
 
         # test all parameters of the energy group: iam_2
@@ -246,7 +234,7 @@ class TestHeatExchangers:
         self.nw.solve('design')
         instance.set_attr(E=8e2)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         assert Q_loss == round(instance.Q_loss.val, 0), msg
 
         # test all parameters of the energy group: aoi
@@ -254,7 +242,7 @@ class TestHeatExchangers:
         self.nw.solve('design')
         instance.set_attr(E=8e2)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         assert Q_loss == round(instance.Q_loss.val, 0), msg
 
         # test all parameters of the energy group: doc
@@ -262,31 +250,31 @@ class TestHeatExchangers:
         self.nw.solve('design')
         instance.set_attr(E=8e2)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         assert Q_loss == round(instance.Q_loss.val, 0), msg
 
     def test_SolarCollector(self):
         """Test component properties of solar collector."""
         instance = SolarCollector('solar collector')
-        self.setup_HeatExchangerSimple_network(instance)
-        fl = {'Ar': 0, 'H2O': 1, 'S800': 0}
+        self.setup_SimpleHeatExchanger_network(instance)
+        fl = {'H2O': 1}
         self.c1.set_attr(fluid=fl, p=10, T=30)
         self.c2.set_attr(T=70)
 
         # test grouped parameter settings with missing parameters
-        instance.hydro_group.is_set = True
+        instance.darcy_group.is_set = True
         instance.energy_group.is_set = True
         self.nw.solve('design', init_only=True)
-        msg = ('Hydro group must no be set, if one parameter is missing!')
-        assert instance.hydro_group.is_set is False, msg
+        msg = ('Darcy group must no be set, if one parameter is missing!')
+        assert not instance.darcy_group.is_set, msg
         msg = ('Energy group must no be set, if one parameter is missing!')
-        assert instance.energy_group.is_set is False, msg
+        assert not instance.energy_group.is_set, msg
 
         # test solar collector params as system variables
         instance.set_attr(E=1e3, lkf_lin=1.0, lkf_quad=0.005, A='var',
                           eta_opt=0.9, Q=1e5, Tamb=20, pr=0.99)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         # heat loss must be identical to E * A - Q (internal heat loss
         # calculation)
         T_diff = (self.c2.T.val + self.c1.T.val) / 2 - instance.Tamb.val
@@ -305,7 +293,7 @@ class TestHeatExchangers:
         self.nw.solve('design')
         instance.set_attr(A=area)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         assert Q_loss == round(instance.Q_loss.val, 0), msg
 
         # test all parameters of the energy group: eta_opt
@@ -313,7 +301,7 @@ class TestHeatExchangers:
         self.nw.solve('design')
         instance.set_attr(E=1e3)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         assert Q_loss == round(instance.Q_loss.val, 0), msg
 
         # test all parameters of the energy group: lkf_lin
@@ -321,7 +309,7 @@ class TestHeatExchangers:
         self.nw.solve('design')
         instance.set_attr(E=1e3)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         assert Q_loss == round(instance.Q_loss.val, 0), msg
 
         # test all parameters of the energy group: lkf_quad
@@ -329,7 +317,7 @@ class TestHeatExchangers:
         self.nw.solve('design')
         instance.set_attr(E=1e3)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         assert Q_loss == round(instance.Q_loss.val, 0), msg
 
         # test all parameters of the energy group: Tamb
@@ -337,7 +325,7 @@ class TestHeatExchangers:
         self.nw.solve('design')
         instance.set_attr(E=1e3)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         assert Q_loss == round(instance.Q_loss.val, 0), msg
 
     def test_HeatExchanger(self):
@@ -349,14 +337,14 @@ class TestHeatExchangers:
         instance.set_attr(pr1=0.98, pr2=0.98, ttd_u=5,
                           design=['pr1', 'pr2', 'ttd_u'],
                           offdesign=['zeta1', 'zeta2', 'kA_char'])
-        self.c1.set_attr(T=120, p=3, fluid={'Ar': 0, 'H2O': 1, 'S800': 0})
+        self.c1.set_attr(T=120, p=3, fluid={'H2O': 1})
         self.c2.set_attr(T=70)
-        self.c3.set_attr(T=40, p=5, fluid={'Ar': 1, 'H2O': 0, 'S800': 0})
+        self.c3.set_attr(T=40, p=5, fluid={'Ar': 1})
         b = Bus('heat transfer', P=-80e3)
         b.add_comps({'comp': instance})
         self.nw.add_busses(b)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         self.nw.save('tmp')
         Q_design = instance.Q.val
 
@@ -364,7 +352,7 @@ class TestHeatExchangers:
         instance.set_attr(kA=instance.kA.val * 2 / 3)
         b.set_attr(P=None)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
 
         # test heat transfer
         Q = self.c1.m.val_SI * (self.c2.h.val_SI - self.c1.h.val_SI)
@@ -377,7 +365,7 @@ class TestHeatExchangers:
         instance.set_attr(kA=None)
         b.set_attr(P=Q_design)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
 
         # check heat transfer
         Q = self.c1.m.val_SI * (self.c2.h.val_SI - self.c1.h.val_SI)
@@ -399,10 +387,10 @@ class TestHeatExchangers:
         assert ttd_u_calc == ttd_u, msg
 
         # check lower terminal temperature difference
-        self.c2.set_attr(T=np.nan)
+        self.c2.set_attr(T=None)
         instance.set_attr(ttd_l=20)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         msg = ('Value of terminal temperature difference must be ' +
                str(instance.ttd_l.val) + ', is ' +
                str(self.c2.T.val - self.c3.T.val) + '.')
@@ -413,9 +401,9 @@ class TestHeatExchangers:
         # check specified kA value (by offdesign parameter), reset temperatures
         # to design state
         self.c2.set_attr(T=70)
-        instance.set_attr(ttd_l=np.nan)
+        instance.set_attr(ttd_l=None)
         self.nw.solve('offdesign', design_path='tmp')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         msg = ('Value of heat flow must be ' + str(instance.Q.val) + ', is ' +
                str(round(Q, 0)) + '.')
         assert round(Q, 0) == round(instance.Q.val, 0), msg
@@ -424,10 +412,10 @@ class TestHeatExchangers:
         assert kA == round(instance.kA.val, 0), msg
 
         # trigger negative lower terminal temperature difference as result
-        self.c4.set_attr(T=np.nan)
+        self.c4.set_attr(T=None)
         self.c2.set_attr(T=30)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         msg = ('Value of upper terminal temperature differences must be '
                'smaller than zero, is ' + str(round(instance.ttd_l.val, 1)) +
                '.')
@@ -435,13 +423,13 @@ class TestHeatExchangers:
 
         # trigger negative upper terminal temperature difference as result
         self.c4.set_attr(T=100)
-        self.c2.set_attr(h=200e3, T=np.nan)
-        instance.set_attr(pr1=0.98, pr2=0.98, ttd_u=np.nan,
+        self.c2.set_attr(h=200e3, T=None)
+        instance.set_attr(pr1=0.98, pr2=0.98, ttd_u=None,
                           design=['pr1', 'pr2'])
-        self.c1.set_attr(h=150e3, T=np.nan)
+        self.c1.set_attr(h=150e3, T=None)
         self.c3.set_attr(T=40)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         msg = ('Value of upper terminal temperature differences must be '
                'smaller than zero, is ' + str(round(instance.ttd_u.val, 1)) +
                '.')
@@ -455,21 +443,22 @@ class TestHeatExchangers:
         self.setup_HeatExchanger_network(instance)
 
         # design specification
-        instance.set_attr(pr1=0.98, pr2=0.98, ttd_u=5,
-                          offdesign=['zeta2', 'kA_char'])
-        self.c1.set_attr(T=100, p0=0.5, fluid={'Ar': 0, 'H2O': 1, 'S800': 0})
-        self.c3.set_attr(T=30, p=5, fluid={'Ar': 0, 'H2O': 1, 'S800': 0})
+        instance.set_attr(
+            pr1=0.98, pr2=0.98, ttd_u=5, offdesign=['zeta2', 'kA_char']
+        )
+        self.c1.set_attr(T=100, p0=0.5, fluid={'H2O': 1})
+        self.c3.set_attr(T=30, p=5, fluid={'H2O': 1})
         self.c4.set_attr(T=40)
         instance.set_attr(Q=-80e3)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         self.nw.save('tmp')
         Q_design = instance.Q.val
 
         # test specified kA value
         instance.set_attr(kA=instance.kA.val * 2 / 3, Q=None)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
 
         # test heat transfer
         Q = self.c1.m.val_SI * (self.c2.h.val_SI - self.c1.h.val_SI)
@@ -481,7 +470,7 @@ class TestHeatExchangers:
         # back to design case
         instance.set_attr(kA=None, Q=Q_design)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
 
         # test heat transfer
         Q = self.c1.m.val_SI * (self.c2.h.val_SI - self.c1.h.val_SI)
@@ -491,7 +480,7 @@ class TestHeatExchangers:
 
         # test upper terminal temperature difference. For the component
         # condenser the temperature of the condensing fluid is relevant.
-        ttd_u = round(T_bp_p(self.c1.get_flow()) - self.c4.T.val_SI, 1)
+        ttd_u = round(self.c1.calc_T_sat() - self.c4.T.val_SI, 1)
         p = round(self.c1.p.val_SI, 5)
         msg = ('Value of terminal temperature difference must be ' +
                str(round(instance.ttd_u.val, 1)) + ', is ' +
@@ -499,9 +488,9 @@ class TestHeatExchangers:
         assert ttd_u == round(instance.ttd_u.val, 1), msg
 
         # test lower terminal temperature difference
-        instance.set_attr(ttd_l=20, ttd_u=np.nan, design=['pr2', 'ttd_l'])
+        instance.set_attr(ttd_l=20, ttd_u=None, design=['pr2', 'ttd_l'])
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         msg = ('Value of terminal temperature difference must be ' +
                str(instance.ttd_l.val) + ', is ' +
                str(self.c2.T.val - self.c3.T.val) + '.')
@@ -512,8 +501,47 @@ class TestHeatExchangers:
         # check kA value with condensing pressure in offdesign mode:
         # no changes to design point means: identical pressure
         self.nw.solve('offdesign', design_path='tmp')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         msg = ('Value of condensing pressure be ' + str(p) + ', is ' +
                str(round(self.c1.p.val_SI, 5)) + '.')
         assert p == round(self.c1.p.val_SI, 5), msg
+        shutil.rmtree('./tmp', ignore_errors=True)
+
+    def test_CondenserWithEvaporation(self):
+        """Test a Condenser that evaporates a fluid."""
+        instance = Condenser('condenser')
+        self.setup_HeatExchanger_network(instance)
+
+        # design specification
+        instance.set_attr(pr1=1, pr2=1, offdesign=["kA"])
+        self.c1.set_attr(x=1, p=1, fluid={'H2O': 1}, m=1)
+        self.c3.set_attr(x=0, p=0.7, fluid={'H2O': 1}, m=2, design=["m"])
+        self.nw.solve('design')
+        self.nw._convergence_check()
+        ttd_l = round(instance.ttd_l.val, 3)
+        ttd_u = round(instance.ttd_u.val, 3)
+        td_log = round(instance.td_log.val, 3)
+        msg = (
+            "Value of upper and lower terminal temperature differences must be "
+            f"identical, but they are not: ttd_u={ttd_u}, ttd_l={ttd_l}."
+        )
+        assert instance.ttd_l.val == instance.ttd_u.val, msg
+
+        msg = (
+            "Value of logarithmic and lower terminal temperature differences "
+            f"must be identical, but they are not: td_log={td_log}, "
+            f"ttd_l={ttd_l}."
+        )
+        assert instance.td_log.val == instance.ttd_l.val, msg
+
+        # self.nw.save('tmp')
+        # self.c1.set_attr(m=1)
+        # self.nw.solve("offdesign", design_path="tmp")
+        # self.nw._convergence_check()
+        # msg = (
+        #     "Value of logarithmic and lower terminal temperature differences "
+        #     f"must be identical, but they are not: td_log={td_log}, "
+        #     f"ttd_l={self.c3.m.val}."
+        # )
+        # assert instance.td_log.val == instance.ttd_l.val, msg
         shutil.rmtree('./tmp', ignore_errors=True)

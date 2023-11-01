@@ -2,21 +2,20 @@
 from tespy.components.basics.cycle_closer import CycleCloser
 from tespy.networks import Network
 from tespy.components import (
-    CycleCloser, Pipe, Pump, Valve, HeatExchangerSimple
+    CycleCloser, Pipe, Pump, Valve, SimpleHeatExchanger
 )
 from tespy.connections import Connection
 
-fluid_list = ['water']
-nw = Network(fluids=fluid_list)
+nw = Network()
 nw.set_attr(T_unit='C', p_unit='bar', h_unit='kJ / kg')
 
 # central heating plant
-hs = HeatExchangerSimple('heat source')
+hs = SimpleHeatExchanger('heat source')
 cc = CycleCloser('cycle closer')
 pu = Pump('feed pump')
 
 # consumer
-cons = HeatExchangerSimple('consumer')
+cons = SimpleHeatExchanger('consumer')
 val = Valve('control valve')
 
 # pipes
@@ -39,7 +38,7 @@ pu.set_attr(eta_s=0.75)
 pipe_feed.set_attr(Q=-250, pr=0.98)
 pipe_return.set_attr(Q=-200, pr=0.98)
 
-c1.set_attr(T=90, p=10, fluid={'water': 1})
+c1.set_attr(T=90, p=10, fluid={'INCOMP::Water': 1})
 c2.set_attr(p=13)
 c4.set_attr(T=65)
 

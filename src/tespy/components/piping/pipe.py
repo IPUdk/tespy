@@ -10,12 +10,12 @@ available from its original location tespy/components/piping/pipe.py
 SPDX-License-Identifier: MIT
 """
 
-from tespy.components.heat_exchangers.simple import HeatExchangerSimple
+from tespy.components.heat_exchangers.simple import SimpleHeatExchanger
 
 
-class Pipe(HeatExchangerSimple):
+class Pipe(SimpleHeatExchanger):
     r"""
-    The Pipe is a subclass of a HeatExchangerSimple.
+    The Pipe is a subclass of a SimpleHeatExchanger.
 
     **Mandatory Equations**
 
@@ -26,10 +26,11 @@ class Pipe(HeatExchangerSimple):
 
     - :py:meth:`tespy.components.component.Component.pr_func`
     - :py:meth:`tespy.components.component.Component.zeta_func`
-    - :py:meth:`tespy.components.heat_exchangers.simple.HeatExchangerSimple.energy_balance_func`
-    - :py:meth:`tespy.components.heat_exchangers.simple.HeatExchangerSimple.hydro_group_func`
-    - :py:meth:`tespy.components.heat_exchangers.simple.HeatExchangerSimple.kA_group_func`
-    - :py:meth:`tespy.components.heat_exchangers.simple.HeatExchangerSimple.kA_char_group_func`
+    - :py:meth:`tespy.components.heat_exchangers.simple.SimpleHeatExchanger.energy_balance_func`
+    - :py:meth:`tespy.components.heat_exchangers.simple.SimpleHeatExchanger.darcy_group_func`
+    - :py:meth:`tespy.components.heat_exchangers.simple.SimpleHeatExchanger.hw_group_func`
+    - :py:meth:`tespy.components.heat_exchangers.simple.SimpleHeatExchanger.kA_group_func`
+    - :py:meth:`tespy.components.heat_exchangers.simple.SimpleHeatExchanger.kA_char_group_func`
 
     Inlets/Outlets
 
@@ -91,13 +92,18 @@ class Pipe(HeatExchangerSimple):
         Length of the pipes, :math:`L/\text{m}`.
 
     ks : float, dict, :code:`"var"`
-        Pipe's roughness, :math:`ks/\text{m}` for darcy friction,
-        :math:`ks/\text{1}` for hazen-williams equation.
+        Pipe's roughness, :math:`ks/\text{m}`.
 
-    hydro_group : str, dict
-        Parametergroup for pressure drop calculation based on pipes dimensions.
-        Choose 'HW' for hazen-williams equation, else darcy friction factor is
-        used.
+    darcy_group : str, dict
+        Parametergroup for pressure drop calculation based on pipes dimensions
+        using darcy weissbach equation.
+
+    ks_HW : float, dict, :code:`"var"`
+        Pipe's roughness, :math:`ks/\text{1}`.
+
+    hw_group : str, dict
+        Parametergroup for pressure drop calculation based on pipes dimensions
+        using hazen williams equation.
 
     kA : float, dict, :code:`"var"`
         Area independent heat transfer coefficient,
@@ -126,8 +132,7 @@ class Pipe(HeatExchangerSimple):
     >>> from tespy.connections import Connection
     >>> from tespy.networks import Network
     >>> import shutil
-    >>> fluid_list = ['ethanol']
-    >>> nw = Network(fluids=fluid_list)
+    >>> nw = Network()
     >>> nw.set_attr(p_unit='bar', T_unit='C', h_unit='kJ / kg', iterinfo=False)
     >>> so = Source('source 1')
     >>> si = Sink('sink 1')

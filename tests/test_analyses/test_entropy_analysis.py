@@ -10,9 +10,9 @@ tests/test_networks/test_exergy_and_entropy_analysis.py
 SPDX-License-Identifier: MIT
 """
 from tespy.components import CycleCloser
-from tespy.components import HeatExchangerSimple
 from tespy.components import Merge
 from tespy.components import Pump
+from tespy.components import SimpleHeatExchanger
 from tespy.components import Splitter
 from tespy.components import Turbine
 from tespy.connections import Bus
@@ -20,20 +20,13 @@ from tespy.connections import Connection
 from tespy.networks import Network
 
 
-def convergence_check(lin_dep):
-    """Check convergence status of a simulation."""
-    msg = 'Calculation did not converge!'
-    assert lin_dep is False, msg
-
-
 class TestClausiusRankine:
 
-    def setup(self):
+    def setup_method(self):
         """Set up clausis rankine cycle with turbine driven feed water pump."""
         self.Tamb = 20
         self.pamb = 1
-        fluids = ['water']
-        self.nw = Network(fluids=fluids)
+        self.nw = Network()
         self.nw.set_attr(p_unit='bar', T_unit='C', h_unit='kJ / kg')
 
         # create components
@@ -41,9 +34,9 @@ class TestClausiusRankine:
         merge1 = Merge('merge 1')
         turb = Turbine('turbine')
         fwp_turb = Turbine('feed water pump turbine')
-        condenser = HeatExchangerSimple('condenser')
+        condenser = SimpleHeatExchanger('condenser')
         fwp = Pump('pump')
-        steam_generator = HeatExchangerSimple('steam generator')
+        steam_generator = SimpleHeatExchanger('steam generator')
         cycle_close = CycleCloser('cycle closer')
 
         # create busses
@@ -88,7 +81,7 @@ class TestClausiusRankine:
         self.nw.solve('design')
         for cp in self.nw.comps['object']:
             cp.entropy_balance()
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
 
     def test_entropy_perfect_cycle(self):
         """Test entropy values in the perfect clausius rankine cycle."""

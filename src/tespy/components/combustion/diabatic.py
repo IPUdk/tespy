@@ -11,9 +11,10 @@ tespy/components/combustion/diabatic.py
 SPDX-License-Identifier: MIT
 """
 
-import logging
+import numpy as np
 
 from tespy.components import CombustionChamber
+from tespy.tools import logger
 from tespy.tools.data_containers import ComponentProperties as dc_cp
 from tespy.tools.document_models import generate_latex_eq
 from tespy.tools.fluid_properties import h_mix_pT
@@ -119,11 +120,9 @@ class DiabaticCombustionChamber(CombustionChamber):
     >>> from tespy.components import Sink, Source, DiabaticCombustionChamber
     >>> from tespy.connections import Connection
     >>> from tespy.networks import Network
-    >>> from tespy.tools.fluid_properties import T_bp_p
+    >>> from tespy.tools.fluid_properties import T_sat_p
     >>> import shutil
-    >>> fluid_list = ['Ar', 'N2', 'H2', 'O2', 'CO2', 'CH4', 'H2O']
-    >>> nw = Network(fluids=fluid_list, p_unit='bar', T_unit='C',
-    ... iterinfo=False)
+    >>> nw = Network(p_unit='bar', T_unit='C', iterinfo=False)
     >>> amb = Source('ambient air')
     >>> sf = Source('fuel')
     >>> fg = Sink('flue gas outlet')
@@ -146,20 +145,36 @@ class DiabaticCombustionChamber(CombustionChamber):
     identical lambda or outlet temperature as in an adiabatic combustion
     chamber.
 
-    >>> comb.set_attr(ti=500000, pr=0.95, eta=1)
-    >>> amb_comb.set_attr(p=1, T=20, fluid={'Ar': 0.0129, 'N2': 0.7553,
-    ... 'H2O': 0, 'CH4': 0, 'CO2': 0.0004, 'O2': 0.2314, 'H2': 0})
-    >>> sf_comb.set_attr(T=25, fluid={'CO2': 0.03, 'H2': 0.01, 'Ar': 0,
-    ... 'N2': 0, 'O2': 0, 'H2O': 0, 'CH4': 0.96}, p=1.2)
+    >>> comb.set_attr(ti=500000, pr=0.95, eta=1, lamb=1.5)
+    >>> amb_comb.set_attr(p=1.2, T=20, fluid={'Ar': 0.0129, 'N2': 0.7553,
+    ... 'CO2': 0.0004, 'O2': 0.2314})
+    >>> sf_comb.set_attr(T=25, fluid={'CO2': 0.03, 'H2': 0.01, 'CH4': 0.96}, p=1.3)
+    >>> nw.solve('design')
     >>> comb_fg.set_attr(T=1200)
+    >>> comb.set_attr(lamb=None)
     >>> nw.solve('design')
     >>> round(comb.lamb.val, 3)
     2.014
+    >>> round(comb_fg.p.val, 2)
+    1.14
+
+    Instead of the pressure ration, we can also specify the outlet pressure.
+    The pressure ratio is the ratio or pressure at the outlet to the pressure
+    at the inlet 1 (ambient air inlet in this example).
+
+    >>> comb.set_attr(pr=None)
+    >>> comb_fg.set_attr(p=1)
+    >>> nw.solve('design')
+    >>> round(comb.pr.val, 3)
+    0.833
+
+    We can change lambda to a specific value and unset the flue gas temperature:
+
     >>> comb.set_attr(lamb=2)
     >>> comb_fg.set_attr(T=None)
     >>> nw.solve('design')
     >>> round(comb_fg.T.val, 1)
-    1206.6
+    1206.5
 
     Now, if we change the efficiency value, e.g. to 0.9, a total of 10 % of
     heat respective to the thermal input will be transferred to the ambient.
@@ -179,7 +194,7 @@ class DiabaticCombustionChamber(CombustionChamber):
     def component():
         return 'diabatic combustion chamber'
 
-    def get_variables(self):
+    def get_parameters(self):
         return {
             'lamb': dc_cp(
                 min_val=1, deriv=self.lambda_deriv, func=self.lambda_func,
@@ -200,16 +215,8 @@ class DiabaticCombustionChamber(CombustionChamber):
 
     def get_mandatory_constraints(self):
         return {
-            'mass_flow_constraints': {
-                'func': self.mass_flow_func, 'deriv': self.mass_flow_deriv,
-                'constant_deriv': True, 'latex': self.mass_flow_func_doc,
-                'num_eq': 1},
-            'stoichiometry_constraints': {
-                'func': self.stoichiometry_func,
-                'deriv': self.stoichiometry_deriv,
-                'constant_deriv': False,
-                'latex': self.stoichiometry_func_doc,
-                'num_eq': self.num_nw_fluids}
+            k: v for k, v in super().get_mandatory_constraints().items()
+            if k in ["mass_flow_constraints", "stoichiometry_constraints"]
         }
 
     def pr_func(self):
@@ -259,8 +266,12 @@ class DiabaticCombustionChamber(CombustionChamber):
         k : int
             Position of equation in Jacobian matrix.
         """
-        self.jacobian[k, 0, 1] = self.pr.val
-        self.jacobian[k, 2, 1] = -1
+        i = self.inl[0]
+        o = self.outl[0]
+        if self.is_variable(i.p):
+            self.jacobian[k, i.p.J_col] = self.pr.val
+        if self.is_variable(o.p):
+            self.jacobian[k, o.p.J_col] = -1
 
     def energy_balance_func(self):
         r"""
@@ -299,12 +310,18 @@ class DiabaticCombustionChamber(CombustionChamber):
 
         res = 0
         for i in self.inl:
-            res += i.m.val_SI * (i.h.val_SI - h_mix_pT(
-                [0, p_ref, 0, i.fluid.val], T_ref, force_gas=True))
+            i.build_fluid_data()
+            res += i.m.val_SI * (
+                i.h.val_SI
+                - h_mix_pT(p_ref, T_ref, i.fluid_data, mixing_rule="forced-gas")
+            )
 
         for o in self.outl:
-            res -= o.m.val_SI * (o.h.val_SI - h_mix_pT(
-                [0, p_ref, 0, o.fluid.val], T_ref, force_gas=True))
+            o.build_fluid_data()
+            res -= o.m.val_SI * (
+                o.h.val_SI
+                - h_mix_pT(p_ref, T_ref, o.fluid_data, mixing_rule="forced-gas")
+            )
 
         res += self.calc_ti() * self.eta.val
         return res
@@ -341,26 +358,48 @@ class DiabaticCombustionChamber(CombustionChamber):
 
     def calc_parameters(self):
         r"""Postprocessing parameter calculation."""
-        CombustionChamber.calc_parameters(self)
+        super().calc_parameters()
 
         T_ref = 298.15
         p_ref = 1e5
 
         res = 0
         for i in self.inl:
-            res += i.m.val_SI * (i.h.val_SI - h_mix_pT(
-                [0, p_ref, 0, i.fluid.val], T_ref, force_gas=True))
+            i.build_fluid_data()
+            res += i.m.val_SI * (
+                i.h.val_SI
+                - h_mix_pT(p_ref, T_ref, i.fluid_data, mixing_rule="forced-gas")
+            )
 
         for o in self.outl:
-            res -= o.m.val_SI * (o.h.val_SI - h_mix_pT(
-                [0, p_ref, 0, o.fluid.val], T_ref, force_gas=True))
+            o.build_fluid_data()
+            res -= o.m.val_SI * (
+                o.h.val_SI
+                - h_mix_pT(p_ref, T_ref, o.fluid_data, mixing_rule="forced-gas")
+            )
 
         self.eta.val = -res / self.ti.val
         self.Q_loss.val = -(1 - self.eta.val) * self.ti.val
 
-        if self.inl[1].p.val < self.inl[0].p.val:
-            msg = (
-                "The pressure at inlet 2 is lower than the pressure at inlet 1 "
-                "at component " + self.label + "."
-            )
-            logging.warning(msg)
+        self.pr.val = self.outl[0].p.val_SI / self.inl[0].p.val_SI
+        for num, i in enumerate(self.inl):
+            if i.p.val < self.outl[0].p.val:
+                msg = (
+                    f"The pressure at inlet {num + 1} is lower than the "
+                    f"pressure at the outlet of component {self.label}."
+                )
+                logger.warning(msg)
+
+    def exergy_balance(self, T0):
+
+        self.E_P = self.outl[0].Ex_physical - (
+            self.inl[0].Ex_physical + self.inl[1].Ex_physical
+        )
+        self.E_F = (
+            self.inl[0].Ex_chemical + self.inl[1].Ex_chemical -
+            self.outl[0].Ex_chemical
+        )
+
+        self.E_D = self.E_F - self.E_P
+        self.epsilon = self._calc_epsilon()
+        self.E_bus = {"chemical": np.nan, "physical": np.nan, "massless": np.nan}

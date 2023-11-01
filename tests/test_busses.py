@@ -26,7 +26,7 @@ from tespy.tools.characteristics import CharLine
 
 class TestBusses:
 
-    def setup(self):
+    def setup_method(self):
         """Set up the model."""
         # %% network setup
         fluid_list = ['Ar', 'N2', 'O2', 'CO2', 'CH4', 'H2O']
@@ -58,11 +58,8 @@ class TestBusses:
         # %% connection parameters
         amb_cp.set_attr(
             T=20, p=1, m=100,
-            fluid={'Ar': 0.0129, 'N2': 0.7553, 'H2O': 0, 'CH4': 0,
-                   'CO2': 0.0004, 'O2': 0.2314})
-        sf_cc.set_attr(
-            T=20, fluid={'CO2': 0.04, 'Ar': 0, 'N2': 0,
-                         'O2': 0, 'H2O': 0, 'CH4': 0.96})
+            fluid={'Ar': 0.0129, 'N2': 0.7553, 'CO2': 0.0004, 'O2': 0.2314})
+        sf_cc.set_attr(T=20, fluid={'CO2': 0.04, 'CH4': 0.96})
         gt_fg.set_attr(p=1)
 
         # motor efficiency
@@ -158,7 +155,7 @@ class TestBusses:
         msg = (
             'The efficiency value of the turbine on the bus ' + tpo.label +
             ' (' + str(eta_gt_tpo) + ') must be equal to 0.975.')
-        assert eta_gt_tpo == 0.975, msg
+        assert round(eta_gt_tpo, 3) == 0.975, msg
 
         eta_ti = cc.calc_bus_efficiency(ti)
         msg = (

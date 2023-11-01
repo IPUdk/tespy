@@ -2,22 +2,21 @@
 from tespy.networks import Network
 
 # create a network object with R134a as fluid
-fluid_list = ['R134a']
-my_plant = Network(fluids=fluid_list)
+my_plant = Network()
 # %%[sec_2]
 # set the unitsystem for temperatures to °C and for pressure to bar
 my_plant.set_attr(T_unit='C', p_unit='bar', h_unit='kJ / kg')
 # %%[sec_3]
 from tespy.components import (
-    CycleCloser, Compressor, Valve, HeatExchangerSimple
+    CycleCloser, Compressor, Valve, SimpleHeatExchanger
 )
 
 cc = CycleCloser('cycle closer')
 
 # heat sink
-co = HeatExchangerSimple('condenser')
+co = SimpleHeatExchanger('condenser')
 # heat source
-ev = HeatExchangerSimple('evaporator')
+ev = SimpleHeatExchanger('evaporator')
 
 va = Valve('expansion valve')
 cp = Compressor('compressor')

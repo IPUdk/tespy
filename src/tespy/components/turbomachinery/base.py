@@ -82,7 +82,7 @@ class Turbomachine(Component):
     def component():
         return 'turbomachine'
 
-    def get_variables(self):
+    def get_parameters(self):
         return {
             'P': dc_cp(
                 deriv=self.energy_balance_deriv, num_eq=1,
@@ -175,7 +175,8 @@ class Turbomachine(Component):
                 \dot{E} = \dot{m}_{in} \cdot \left(h_{out} - h_{in} \right)
         """
         return self.inl[0].m.val_SI * (
-            self.outl[0].h.val_SI - self.inl[0].h.val_SI)
+            self.outl[0].h.val_SI - self.inl[0].h.val_SI
+        )
 
     def bus_func_doc(self, bus):
         r"""
@@ -209,12 +210,21 @@ class Turbomachine(Component):
         deriv : ndarray
             Matrix of partial derivatives.
         """
-        deriv = np.zeros((1, 2, self.num_nw_vars))
         f = self.calc_bus_value
-        deriv[0, 0, 0] = self.numeric_deriv(f, 'm', 0, bus=bus)
-        deriv[0, 0, 2] = self.numeric_deriv(f, 'h', 0, bus=bus)
-        deriv[0, 1, 2] = self.numeric_deriv(f, 'h', 1, bus=bus)
-        return deriv
+        if self.inl[0].m.is_var:
+            if self.inl[0].m.J_col not in bus.jacobian:
+                bus.jacobian[self.inl[0].m.J_col] = 0
+            bus.jacobian[self.inl[0].m.J_col] -= self.numeric_deriv(f, 'm', self.inl[0], bus=bus)
+
+        if self.inl[0].h.is_var:
+            if self.inl[0].h.J_col not in bus.jacobian:
+                bus.jacobian[self.inl[0].h.J_col] = 0
+            bus.jacobian[self.inl[0].h.J_col] -= self.numeric_deriv(f, 'h', self.inl[0], bus=bus)
+
+        if self.outl[0].h.is_var:
+            if self.outl[0].h.J_col not in bus.jacobian:
+                bus.jacobian[self.outl[0].h.J_col] = 0
+            bus.jacobian[self.outl[0].h.J_col] -= self.numeric_deriv(f, 'h', self.outl[0], bus=bus)
 
     def calc_parameters(self):
         r"""Postprocessing parameter calculation."""
@@ -236,7 +246,8 @@ class Turbomachine(Component):
             \right)\\
         """
         self.S_irr = self.inl[0].m.val_SI * (
-            self.outl[0].s.val_SI - self.inl[0].s.val_SI)
+            self.outl[0].s.val_SI - self.inl[0].s.val_SI
+        )
 
     def get_plotting_data(self):
         """Generate a dictionary containing FluProDia plotting information.

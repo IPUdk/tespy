@@ -22,7 +22,7 @@ thermodynamics, the conversion of heat and internal energy into work is
 limited. This constraint and the idea of destruction are applied to introduce a
 new concept: "Exergy".
 
-Exergy can be destroyed due to irreversibilities and is able to describe the
+Exergy can be destroyed due to irreversibility and is able to describe the
 quality of different energy forms. The difference in quality of different forms
 of energy shall be illustrated by the following example. 1 kJ of electrical
 energy is clearly more valuable than 1 kJ of energy in a glass of water at
@@ -70,6 +70,14 @@ potential exergy are neglected and therefore not considered as well.
       - (specific) mechanical exergy
       - :math:`e^\mathrm{M}`, :math:`E^\mathrm{M}`
       - associated with the system pressure
+    * - :code:`ex_chemical`, :code:`Ex_chemical`
+      - (specific) chemical exergy
+      - :math:`e^\mathrm{CH}`, :math:`E^\mathrm{CH}`
+      - based on standard chemical exergy in ambient model, the `tespy.data`
+        module provides three different datasets for standard exergy based on
+        various sources, i.e. `Ahrendts`
+        :cite:`Ahrendts1980,Ahrendts1977,Ahrendts1974`, `Szargut1988`
+        :cite:`Szargut1988` and `Szargut2007` :cite:`Szargut2007,Bakshi2011`.
     * - :code:`E_P`
       - product exergy
       - :math:`\dot{E}_\mathrm{P}`
@@ -84,12 +92,12 @@ potential exergy are neglected and therefore not considered as well.
     * - :code:`E_D`
       - exergy destruction
       - :math:`\dot{E}_\mathrm{D}`
-      - thermodynamic inefficienies associated with the irreversibilities
+      - thermodynamic inefficiencies associated with the irreversibility
         (entropy generation) within the system boundaries
     * - :code:`E_L`
       - exergy loss
       - :math:`\dot{E}_\mathrm{L}`
-      - thermodynamic inefficienies associated with the transfer of exergy
+      - thermodynamic inefficiencies associated with the transfer of exergy
         through material and energy streams to the surroundings
     * - :code:`epsilon`
       - exergetic efficiency
@@ -108,31 +116,32 @@ potential exergy are neglected and therefore not considered as well.
 
 .. note::
 
-    The generic exergy analysis balance equations have been implemented into
-    TESPy for all components, that do not implement chemical reactions. The
-    equations for exergy balances at temperature values below the ambient
-    temperature are implemented as well, but are not yet fully tested.
+    The generic exergy analysis balance equations have not yet been fully
+    implemented and tested for the components `FuelCell`, `WaterElectrolzer`
+    and `CombustionEngine`.
 
 Tutorial
 ========
-In this short tutorial, an exergy analysis is carried out for the so called
+In this short tutorial, an exergy analysis is carried out for the so-called
 "Solar Energy Generating System" (SEGS). The full python script is available on
 GitHub in an individual repository: https://github.com/fwitte/SEGS_exergy.
 
-Two other full code examples are to be found at:
+.. tip::
 
-- Supercritical CO\ :sub:`2` power cycle: https://github.com/fwitte/sCO2_exergy
-- Refrigeration machine: https://github.com/fwitte/refrigeration_cycle_exergy
+  Two other full code examples are to be found at:
+
+  - Supercritical CO\ :sub:`2` power cycle: https://github.com/fwitte/sCO2_exergy
+  - Refrigeration machine: https://github.com/fwitte/refrigeration_cycle_exergy
 
 SEGS consists of three main systems, the solar field, the steam cycle and the
-cooling water system. In the solar field Therminol VP1 (TVP1) is used as heat transfer
-fluid. In the steam generator and reheater the TVP1 is cooled down to evaporate
-and overheat/reheat the water of the steam cycle. The turbine is divided in a
-high pressure turbine and a low pressure turbine, which are further subdivided
-in 2 parts (high pressure turbine) and 5 parts. In between the stages steam is
-exctracted for preheating. Finally, the main condenser of the steam cycle is
-connected to an air cooling tower. The figure below shows the topology of the
-model.
+cooling water system. In the solar field Therminol VP1 (TVP1) is used as heat
+transfer fluid. In the steam generator and reheater the TVP1 is cooled down to
+evaporate and overheat/reheat the water of the steam cycle. The turbine is
+divided in a high pressure turbine and a low pressure turbine, which are
+further subdivided in 2 parts (high pressure turbine) and 5 parts. In between
+the stages steam is extracted for preheating. Finally, the main condenser of
+the steam cycle is connected to an air cooling tower. The figure below shows
+the topology of the model.
 
 .. figure:: /_static/images/advanced/exergy/flowsheet.svg
     :align: center
@@ -260,7 +269,7 @@ the API documentation of class :py:class:`tespy.tools.analyses.ExergyAnalysis`.
 After the setup of the exergy analysis, the
 :py:meth:`tespy.tools.analyses.ExergyAnalysis.analyse` method expects the
 definition of the ambient state, thus ambient temperature and ambient pressure.
-With these information, the analysis is carried out automatically. The value
+With this information, the analysis is carried out automatically. The value
 of the ambient conditions is passed in the network's (:code:`nw`) corresponding
 units.
 
@@ -291,7 +300,7 @@ destruction on the respective busses is calculated. On top of that, fuel and
 product exergy values as well as exergy loss are determined. The total exergy
 destruction must therefore be equal to the fuel exergy minus product exergy and
 minus exergy loss. The deviation of that equation is then calculated and
-checked versus a threshold value of :math:`10^{-3}` (to componesate for
+checked versus a threshold value of :math:`10^{-3}` (to compensate for
 rounding errors).
 
 .. math::
@@ -337,10 +346,10 @@ deselect the tables, e.g. by passing :code:`groups=False` to the method call.
     ean.print_results(groups=False, connections=False)
 
 For the component related tables, i.e. busses, components, aggregation and
-groups, the data are sorted in descending order for the given exergy destruction value
-of the individual entry. The component data contain fuel exergy, product exergy
-and exergy destruction values related to the component itself ignoring losses
-that might occur on the busses, for example, mechanical or electrical
+groups, the data are sorted in descending order for the given exergy destruction
+value of the individual entry. The component data contain fuel exergy, product
+exergy and exergy destruction values related to the component itself ignoring
+losses that might occur on the busses, for example, mechanical or electrical
 conversion losses in motors and generators. The bus data contain the respective
 information related to the conversion losses on the busses only. The
 aggregation data contain both, the component and the bus data. For instance,
@@ -353,7 +362,7 @@ exergy, while the product is the electrical energy.
 .. note::
 
   Please note, that in contrast to the component and bus data, group data do
-  not contain fuel and product exergy as well as exergy efficiency. Instead all
+  not contain fuel and product exergy as well as exergy efficiency. Instead, all
   exergy streams entering the system borders of the component group and all
   exergy streams leaving the system borders are calculated. On this basis, a
   graphical representation of the exergy flows in the network can be generated
@@ -420,11 +429,12 @@ exclude relatively small values from display.
             'E_L', 'E_P', 'E_D'
         ],
         colors={'E_F': 'rgba(100, 100, 100, 0.5)'},
-        display_thresold=1)
+        display_thresold=1
+    )
 
 The coloring of the links is defined by the type of the exergy stream (bound
 to a specific fluid, fuel exergy, product exergy, exergy loss, exergy
-destruction or internal exergy streams not bound to mass flows). Therefore
+destruction or internal exergy streams not bound to mass flows). Therefore,
 colors can be assigned to these types of streams.
 
 .. note::

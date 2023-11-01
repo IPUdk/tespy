@@ -8,18 +8,54 @@ available from its original location tespy/tools/helpers.py
 
 SPDX-License-Identifier: MIT
 """
-import logging
+
+import json
 import os
 from collections import OrderedDict
 from collections.abc import Mapping
 from copy import deepcopy
 
-import CoolProp as CP
+import CoolProp.CoolProp as CP
 import numpy as np
 
-from tespy.tools.global_vars import err
+from tespy import __datapath__
+from tespy.tools import logger
+from tespy.tools.global_vars import ERR
 from tespy.tools.global_vars import fluid_property_data
 from tespy.tools.global_vars import molar_masses
+
+
+def get_all_subdictionaries(data):
+    subdictionaries = []
+    for value in data.values():
+        if len(value["subbranches"]) == 0:
+            subdictionaries.append(
+                {k: v for k, v in value.items() if k != "subbranches"}
+            )
+        else:
+            subdictionaries.append(
+                {k: v for k, v in value.items() if k != "subbranches"}
+            )
+            subdictionaries.extend(get_all_subdictionaries(value["subbranches"]))
+
+    return subdictionaries
+    #     for key, value in data.items():
+    #         if isinstance(value, dict):
+    #             subdictionaries.append(value)
+    #             subdictionaries.extend(get_all_subdictionaries(value, dictionary_keys))
+    # return subdictionaries
+
+
+def get_chem_ex_lib(name):
+    """Return a new dictionary by merging two dictionaries recursively."""
+    path = os.path.join(__datapath__, "ChemEx", f"{name}.json")
+    with open(path, "r") as f:
+        return json.load(f)
+
+
+def fluidalias_in_list(fluid, fluid_list):
+    aliases = [alias.replace(' ', '') for alias in CP.get_aliases(fluid)]
+    return any(alias in fluid_list for alias in aliases)
 
 
 def merge_dicts(dict1, dict2):
@@ -55,6 +91,13 @@ def nested_OrderedDict(dictionary):
             dictionary[key] = nested_OrderedDict(value)
 
     return dictionary
+
+
+def extend_tuple_of_lists(original, added):
+    return tuple(
+        [*x, *y] for x, y
+        in zip(original, added)
+    )
 
 
 class TESPyNetworkError(Exception):
@@ -201,7 +244,7 @@ class UserDefinedEquation:
         >>> from tespy.tools.helpers import UserDefinedEquation
         >>> from tespy.tools import CharLine
         >>> from tespy.tools.fluid_properties import T_mix_ph, v_mix_ph
-        >>> nw = Network(fluids=['water'], p_unit='bar', T_unit='C')
+        >>> nw = Network(p_unit='bar', T_unit='C')
         >>> nw.set_attr(iterinfo=False)
         >>> so = Source('source')
         >>> si = Sink('sink')
@@ -228,10 +271,11 @@ class UserDefinedEquation:
         >>> def myfunc(ude):
         ...    char = ude.params['char']
         ...    return (
-        ...        T_mix_ph(ude.conns[0].get_flow()) -
-        ...        T_mix_ph(ude.conns[1].get_flow()) - char.evaluate(
+        ...        ude.conns[0].calc_T() - ude.conns[1].calc_T()
+        ...        - char.evaluate(
         ...            ude.conns[0].m.val_SI *
-        ...            v_mix_ph(ude.conns[0].get_flow()))
+        ...            ude.conns[0].calc_vol()
+        ...        )
         ...    )
 
         The function does only take one parameter, we name it :code:`ude` in
@@ -248,30 +292,38 @@ class UserDefinedEquation:
         pressure, enthalpy and fluid composition. In this case, the derivatives
         to the mass flow, pressure and enthalpy of the inflow as well as the
         derivatives to the pressure and enthalpy of the outflow will be
-        required. Similar to the equation definition, define a function
-        returning the corresponding jacobian matrix. The jacobian is a
-        dictionary containing numpy arrays for every connection. Therefore
-        the first key is the connection you want to calculate the derivative
-        for and the second key is the index of the variable in the jacobian.
-        The indices correspond to
-
-        - 0: mass flow
-        - 1: pressure
-        - 2: enthalpy
-        - 3 until end (:code:`3:`): fluid composition
+        required. You have to define a function placing the derivatives in the
+        Jacobian matrix. The Jacobian is a dictionary containing tuples as keys
+        with the derivative as their value. The tuples indicate the equation
+        number (always 0 for user defined equations, since there is only a
+        single equation) and the position of the variable in the system matrix.
+        The position of the variables is stored in the :code:`J_col` attribute.
+        Before calculating and placing a result in the Jacobian, you have to
+        make sure, that the variable you want to calculate the partial
+        derivative for is actually a variable. For example, in case you
+        specified a value for the mass flow, it will not be part of the
+        variables' space, since it has a constant value, and thus, no derivate
+        needs to be calculated. You can use the :code:`is_var` keyword to check,
+        whether a mass flow, pressure or enthalpy is actually variable.
 
         We can calculate the derivatives numerically, if an easy analytical
         solution is not available. Simply use the :code:`numeric_deriv` method
         passing the variable ('m', 'p', 'h', 'fluid') as well as the
-        connection's index.
+        connection.
 
         >>> def myjacobian(ude):
-        ...    ude.jacobian[ude.conns[0]][0] = ude.numeric_deriv('m', 0)
-        ...    ude.jacobian[ude.conns[0]][1] = ude.numeric_deriv('p', 0)
-        ...    ude.jacobian[ude.conns[0]][2] = ude.numeric_deriv('h', 0)
-        ...    ude.jacobian[ude.conns[1]][1] = ude.numeric_deriv('p', 1)
-        ...    ude.jacobian[ude.conns[1]][2] = ude.numeric_deriv('h', 1)
-        ...    return ude.jacobian
+        ...     c0 = ude.conns[0]
+        ...     c1 = ude.conns[1]
+        ...     if c0.m.is_var:
+        ...         ude.jacobian[c0.m.J_col] = ude.numeric_deriv('m', c0)
+        ...     if c0.p.is_var:
+        ...         ude.jacobian[c0.p.J_col] = ude.numeric_deriv('p', c0)
+        ...     if c0.h.is_var:
+        ...         ude.jacobian[c0.h.J_col] = ude.numeric_deriv('h', c0)
+        ...     if c1.p.is_var:
+        ...         ude.jacobian[c1.p.J_col] = ude.numeric_deriv('p', c1)
+        ...     if c1.h.is_var:
+        ...         ude.jacobian[c1.h.J_col] = ude.numeric_deriv('h', c1)
 
         After that, we only need to th specify the characteristic line we want
         out temperature drop to follow as well as create the
@@ -317,7 +369,7 @@ class UserDefinedEquation:
             self.label = label
         else:
             msg = 'Label of UserDefinedEquation object must be of type String.'
-            logging.error(msg)
+            logger.error(msg)
             raise TypeError(msg)
 
         if isinstance(conns, list):
@@ -326,7 +378,7 @@ class UserDefinedEquation:
             msg = (
                 'Parameter conns must be a list of '
                 'tespy.connections.connection.Connection objects.')
-            logging.error(msg)
+            logger.error(msg)
             raise TypeError(msg)
 
         self.func = func
@@ -336,7 +388,7 @@ class UserDefinedEquation:
             self.params = params
         else:
             msg = 'The parameter params must be passed as dictionary.'
-            logging.error(msg)
+            logger.error(msg)
             raise TypeError(msg)
 
         self.latex = {
@@ -348,10 +400,14 @@ class UserDefinedEquation:
             self.latex.update(latex)
         else:
             msg = 'The parameter latex must be passed as dictionary.'
-            logging.error(msg)
+            logger.error(msg)
             raise TypeError(msg)
 
-    def numeric_deriv(self, param, idx):
+    def solve(self):
+        self.residual = self.func(self)
+        self.deriv(self)
+
+    def numeric_deriv(self, param, conn):
         r"""
         Calculate partial derivative of the function func to dx numerically.
 
@@ -377,19 +433,19 @@ class UserDefinedEquation:
         if param == 'fluid':
             d = 1e-5
             deriv = []
-            for f in self.conns[0].fluid.val.keys():
-                val = self.conns[idx].fluid.val[f]
-                if self.conns[idx].fluid.val[f] + d <= 1:
-                    self.conns[idx].fluid.val[f] += d
+            for f in conn.fluid.val.keys():
+                val = conn.fluid.val[f]
+                if conn.fluid.val[f] + d <= 1:
+                    conn.fluid.val[f] += d
                 else:
-                    self.conns[idx].fluid.val[f] = 1
+                    conn.fluid.val[f] = 1
                 exp = self.func(self)
-                if self.conns[idx].fluid.val[f] - 2 * d >= 0:
-                    self.conns[idx].fluid.val[f] -= 2 * d
+                if conn.fluid.val[f] - 2 * d >= 0:
+                    conn.fluid.val[f] -= 2 * d
                 else:
-                    self.conns[idx].fluid.val[f] = 0
+                    conn.fluid.val[f] = 0
                 exp -= self.func(self)
-                self.conns[idx].fluid.val[f] = val
+                conn.fluid.val[f] = val
 
                 deriv += [exp / (2 * d)]
 
@@ -399,20 +455,20 @@ class UserDefinedEquation:
                 d = 1e-4
             else:
                 d = 1e-1
-
-            self.conns[idx].get_attr(param).val_SI += d
+            conn.get_attr(param).val_SI += d
             exp = self.func(self)
-            self.conns[idx].get_attr(param).val_SI -= 2 * d
-            exp -= self.func(self)
-            self.conns[idx].get_attr(param).val_SI += d
 
+            conn.get_attr(param).val_SI -= 2 * d
+            exp -= self.func(self)
             deriv = exp / (2 * d)
+
+            conn.get_attr(param).val_SI += d
 
         else:
             msg = (
                 'Can only calculate numerical derivative to primary variables.'
                 'Please specify "m", "p", "h" or "fluid" as param.')
-            logging.error(msg)
+            logger.error(msg)
             raise ValueError(msg)
 
         return deriv
@@ -482,8 +538,8 @@ def newton(func, deriv, params, y, **kwargs):
     valmin = kwargs.get('valmin', 70)
     valmax = kwargs.get('valmax', 3000)
     max_iter = kwargs.get('max_iter', 10)
-    tol_rel = kwargs.get('tol_rel', err)
-    tol_abs = kwargs.get('tol_abs', err)
+    tol_rel = kwargs.get('tol_rel', ERR )
+    tol_abs = kwargs.get('tol_abs', ERR )
     tol_mode = kwargs.get('tol_mode', 'abs')
 
     # start newton loop
@@ -506,7 +562,7 @@ def newton(func, deriv, params, y, **kwargs):
                    'for function ' + str(func) + '. Current value with x=' +
                    str(x) + ' is ' + str(func(params, x)) +
                    ', target value is ' + str(y) + '.')
-            logging.debug(msg)
+            logger.debug(msg)
 
             break
         if tol_mode == 'abs':
@@ -628,7 +684,7 @@ def molar_mass_flow(flow):
     """
     mm = 0
     for fluid, x in flow.items():
-        if x > err:
+        if x > ERR :
             mm += x / molar_masses[fluid]
     return mm
 
@@ -659,7 +715,7 @@ def num_fluids(fluids):
     """
     n = 0
     for fluid, x in fluids.items():
-        if x > err:
+        if x > ERR :
             n += 1
 
     return n
@@ -683,7 +739,7 @@ def single_fluid(fluids):
     """
     if num_fluids(fluids) == 1:
         for fluid, x in fluids.items():
-            if x > err:
+            if x > ERR :
                 return fluid
     else:
         return None
@@ -716,15 +772,13 @@ def fluid_structure(fluid):
     (1, 4)
     """
     parts = {}
-    for element in CP.CoolProp.get_fluid_param_string(
+    for element in CP.get_fluid_param_string(
             fluid, 'formula').split('}'):
         if element != '':
             el = element.split('_{')
             parts[el[0]] = int(el[1])
 
     return parts
-
-# %%
 
 
 def darcy_friction_factor(re, ks, d):

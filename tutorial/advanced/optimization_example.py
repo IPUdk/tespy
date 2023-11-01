@@ -7,7 +7,7 @@ from tespy.components import Sink
 from tespy.components import Source
 from tespy.components import Condenser
 from tespy.components import Desuperheater
-from tespy.components import HeatExchangerSimple
+from tespy.components import SimpleHeatExchanger
 from tespy.components import Merge
 from tespy.components import Splitter
 from tespy.components import Valve
@@ -24,13 +24,13 @@ class SamplePlant:
     """Class template for TESPy model usage in optimization module."""
     def __init__(self):
 
-        self.nw = Network(fluids=["water"])
+        self.nw = Network()
         self.nw.set_attr(
             p_unit="bar", T_unit="C", h_unit="kJ / kg", iterinfo=False
         )
         # components
         # main cycle
-        sg = HeatExchangerSimple("steam generator")
+        sg = SimpleHeatExchanger("steam generator")
         cc = CycleCloser("cycle closer")
         hpt = Turbine("high pressure turbine")
         sp1 = Splitter("splitter 1", num_out=2)
@@ -182,7 +182,7 @@ class SamplePlant:
         self.solved = False
         try:
             self.nw.solve("design")
-            if self.nw.res[-1] >= 1e-3 or self.nw.lin_dep:
+            if not self.nw.converged:
                 self.nw.solve("design", init_only=True, init_path=self.stable)
             else:
                 # might need more checks here!

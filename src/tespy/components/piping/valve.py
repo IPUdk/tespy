@@ -10,11 +10,10 @@ available from its original location tespy/components/piping.py
 SPDX-License-Identifier: MIT
 """
 
-import logging
-
 import numpy as np
 
 from tespy.components.component import Component
+from tespy.tools import logger
 from tespy.tools.data_containers import ComponentCharacteristics as dc_cc
 from tespy.tools.data_containers import ComponentProperties as dc_cp
 from tespy.tools.document_models import generate_latex_eq
@@ -98,9 +97,7 @@ class Valve(Component):
     >>> from tespy.connections import Connection
     >>> from tespy.networks import Network
     >>> import shutil
-    >>> fluid_list = ['CH4']
-    >>> nw = Network(fluids=fluid_list, p_unit='bar', T_unit='C',
-    ... iterinfo=False)
+    >>> nw = Network(p_unit='bar', T_unit='C', iterinfo=False)
     >>> so = Source('source')
     >>> si = Sink('sink')
     >>> v = Valve('valve')
@@ -137,7 +134,7 @@ class Valve(Component):
     def component():
         return 'valve'
 
-    def get_variables(self):
+    def get_parameters(self):
         return {
             'pr': dc_cp(
                 min_val=1e-4, max_val=1, num_eq=1,
@@ -155,14 +152,6 @@ class Valve(Component):
 
     def get_mandatory_constraints(self):
         return {
-            'mass_flow_constraints': {
-                'func': self.mass_flow_func, 'deriv': self.mass_flow_deriv,
-                'constant_deriv': True, 'latex': self.mass_flow_func_doc,
-                'num_eq': 1},
-            'fluid_constraints': {
-                'func': self.fluid_func, 'deriv': self.fluid_deriv,
-                'constant_deriv': True, 'latex': self.fluid_func_doc,
-                'num_eq': self.num_nw_fluids},
             'enthalpy_equality_constraints': {
                 'func': self.enthalpy_equality_func,
                 'deriv': self.enthalpy_equality_deriv,
@@ -197,7 +186,7 @@ class Valve(Component):
         if not expr:
             msg = ('Please choose a valid parameter, you want to link the '
                    'pressure drop to at component ' + self.label + '.')
-            logging.error(msg)
+            logger.error(msg)
             raise ValueError(msg)
 
         return (
@@ -223,7 +212,7 @@ class Valve(Component):
         if not expr:
             msg = ('Please choose a valid parameter, you want to link the '
                    'pressure drop to at component ' + self.label + '.')
-            logging.error(msg)
+            logger.error(msg)
             raise ValueError(msg)
 
         latex = (
@@ -243,18 +232,22 @@ class Valve(Component):
         k : int
             Position of derivatives in Jacobian matrix (k-th equation).
         """
-        if not increment_filter[0, 0]:
-            self.jacobian[k, 0, 0] = self.numeric_deriv(
-                self.dp_char_func, 'm', 0)
+        f = self.dp_char_func
+        i = self.inl[0]
+        o = self.outl[0]
+        if self.is_variable(i.m, increment_filter):
+            self.jacobian[k, i.m.J_col] = self.numeric_deriv(f, 'm', i)
         if self.dp_char.param == 'v':
             self.jacobian[k, 0, 1] = self.numeric_deriv(
                 self.dp_char_func, 'p', 0)
             self.jacobian[k, 0, 2] = self.numeric_deriv(
                 self.dp_char_func, 'h', 0)
         else:
+            # if
             self.jacobian[k, 0, 1] = 1
 
-        self.jacobian[k, 1, 1] = -1
+        if self.is_variable(o.p):
+            self.jacobian[k, o.p.J_col] = -1
 
     def initialise_source(self, c, key):
         r"""
@@ -316,12 +309,13 @@ class Valve(Component):
 
     def calc_parameters(self):
         r"""Postprocessing parameter calculation."""
-        i = self.inl[0].get_flow()
-        o = self.outl[0].get_flow()
-        self.pr.val = o[1] / i[1]
-        self.zeta.val = ((i[1] - o[1]) * np.pi ** 2 / (
-            4 * i[0] ** 2 * (self.inl[0].vol.val_SI + self.outl[0].vol.val_SI)
-            ))
+        i = self.inl[0]
+        o = self.outl[0]
+        self.pr.val = o.p.val_SI / i.p.val_SI
+        self.zeta.val = (
+            (i.p.val_SI - o.p.val_SI) * np.pi ** 2
+            / (4 * i.m.val_SI ** 2 * (i.vol.val_SI + o.vol.val_SI))
+        )
 
     def entropy_balance(self):
         r"""
@@ -337,7 +331,8 @@ class Valve(Component):
             \right)\\
         """
         self.S_irr = self.inl[0].m.val_SI * (
-            self.outl[0].s.val_SI - self.inl[0].s.val_SI)
+            self.outl[0].s.val_SI - self.inl[0].s.val_SI
+        )
 
     def exergy_balance(self, T0):
         r"""
@@ -385,16 +380,18 @@ class Valve(Component):
         else:
             msg = ('Exergy balance of a valve, where outlet temperature is '
                    'larger than inlet temperature is not implmented.')
-            logging.warning(msg)
+            logger.warning(msg)
             self.E_P = np.nan
             self.E_F = np.nan
 
-        self.E_bus = np.nan
+        self.E_bus = {
+            "chemical": np.nan, "physical": np.nan, "massless": np.nan
+        }
         if np.isnan(self.E_P):
             self.E_D = self.E_F
         else:
             self.E_D = self.E_F - self.E_P
-        self.epsilon = self.E_P / self.E_F
+        self.epsilon = self._calc_epsilon()
 
     def get_plotting_data(self):
         """Generate a dictionary containing FluProDia plotting information.

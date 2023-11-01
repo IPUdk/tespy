@@ -30,7 +30,7 @@ well as the equations.
 
 - Heat exchangers
 
-  * :py:class:`Simplified heat exchanger <tespy.components.heat_exchangers.simple.HeatExchangerSimple>`
+  * :py:class:`Simplified heat exchanger <tespy.components.heat_exchangers.simple.SimpleHeatExchanger>`
   * :py:class:`Solar collector <tespy.components.heat_exchangers.solar_collector.SolarCollector>`
   * :py:class:`Parabolic trough <tespy.components.heat_exchangers.parabolic_trough.ParabolicTrough>`
   * :py:class:`Heat exchanger <tespy.components.heat_exchangers.base.HeatExchanger>`
@@ -370,7 +370,7 @@ Characteristics are available for the following components and parameters:
 
 - simple heat exchangers
 
-  * :py:meth:`kA_char <tespy.components.heat_exchangers.simple.HeatExchangerSimple.kA_char_group_func>`: heat transfer coefficient.
+  * :py:meth:`kA_char <tespy.components.heat_exchangers.simple.SimpleHeatExchanger.kA_char_group_func>`: heat transfer coefficient.
 
 - turbine
 
@@ -393,14 +393,14 @@ Extend components with new equations
 You can easily add custom equations to the existing components. In order to do
 this, you need to implement four changes to the desired component class:
 
-- modify the :code:`get_variables(self)` method.
+- modify the :code:`get_parameters(self)` method.
 - add a method, that returns the result of your equation.
-- add a method, that places the partial derivatives in the jacobian matrix of
+- add a method, that places the partial derivatives in the Jacobian matrix of
   your component.
 - add a method, that returns the LaTeX code of your equation for the automatic
   documentation feature.
 
-In the :code:`get_variables(self)` method, add an entry for your new equation.
+In the :code:`get_parameters(self)` method, add an entry for your new equation.
 If the equation uses a single parameter, use the :code:`ComponentProperties`
 type DataContainer (or the :code:`ComponentCharacteristics` type in case you
 only apply a characteristic curve). If your equations requires multiple
@@ -408,7 +408,7 @@ parameters, add these parameters as :code:`ComponentProperties` or
 :code:`ComponentCharacteristics` respectively and add a
 :code:`GroupedComponentProperties` type DataContainer holding the information,
 e.g. like the :code:`hydro_group` parameter of the
-:py:class:`tespy.components.heat_exchangers.simple.HeatExchangerSimple`
+:py:class:`tespy.components.heat_exchangers.simple.SimpleHeatExchanger`
 class shown below.
 
 .. code:: python
@@ -440,7 +440,7 @@ custom component. Now create a class for your component and at least add the
 following methods.
 
 - :code:`component(self)`,
-- :code:`get_variables(self)`,
+- :code:`get_parameters(self)`,
 - :code:`get_mandatory_constraints(self)`,
 - :code:`inlets(self)`,
 - :code:`outlets(self)` and
@@ -524,7 +524,7 @@ LaTeX string generation are individual methods you need to define
 Attributes
 ^^^^^^^^^^
 
-The :code:`get_variables()` method must return a dictionary with the attributes
+The :code:`get_parameters()` method must return a dictionary with the attributes
 you want to use for your component. The keys represent the attributes and the
 respective values the type of data container used for this attribute. By using
 the data container attributes, it is possible to add defaults. Defaults for
@@ -539,7 +539,7 @@ DataContainers instead of dictionaries, e.g. for the Valve:
 
 .. code:: python
 
-    def get_variables(self):
+    def get_parameters(self):
         return {
             'pr': dc_cp(
                 min_val=1e-4, max_val=1, num_eq=1,
@@ -708,7 +708,7 @@ Subsystems are an easy way to add frequently used component groups such as a
 drum with evaporator or a preheater with desuperheater to your system. In this
 section you will learn how to create a subsystem and implement it in your work.
 The subsystems are highly customizable and thus a very powerful tool, if you
-require to use specific component groups frequently. We provide an example, of
+require using specific component groups frequently. We provide an example, of
 how to create a simple subsystem and use it in a simulation.
 
 Custom subsystems

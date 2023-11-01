@@ -5,8 +5,8 @@ Thermal Engineering Systems in Python
 TESPy stands for "Thermal Engineering Systems in Python" and provides a
 powerful simulation toolkit for thermal engineering plants such as power
 plants, district heating systems or heat pumps. It is an external extension
-module within the `Open Energy Modeling Framework <https://oemof.org/>`_ and
-can be used as a standalone package.
+module within the Open Energy Modeling Framework `oemof <https://oemof.org/>`_
+and can be used as a standalone package.
 
 .. image:: /_static/images/logo_tespy_big.svg
    :align: center
@@ -28,8 +28,8 @@ mixers and splitters as well as some advanced components
 Everybody is welcome to use and/or develop TESPy. Contribution is already
 possible on a low level by simply fixing typos in TESPy's documentation or
 rephrasing sections which are unclear. If you want to support us that way
-please fork the TESPy repository to your own github account and make
-changes as described in the github guidelines:
+please fork the TESPy repository to your own GitHub account and make
+changes as described in the GitHub guidelines:
 https://guides.github.com/activities/hello-world/
 
 Key Features
@@ -72,7 +72,7 @@ Citation
 ========
 
 The scope and functionalities of TESPy have been documented in a paper
-published in the Journal of Open Source Software with an OpenAccess license.
+published in the Journal of Open Source Software with an Open-Access license.
 Download the paper from https://doi.org/10.21105/joss.02178 :cite:`Witte2020`.
 As TESPy is a free software, we kindly ask that you add a reference to TESPy
 if you use the software for your scientific work. Please cite the article with

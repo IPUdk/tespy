@@ -22,17 +22,11 @@ from tespy.connections import Connection
 from tespy.networks import Network
 
 
-def convergence_check(lin_dep):
-    """Check convergence status of a simulation."""
-    msg = 'Calculation did not converge!'
-    assert lin_dep is False, msg
-
-
 class TestReactors:
 
-    def setup(self):
+    def setup_method(self):
         """Set up network for electrolyzer tests."""
-        self.nw = Network(['O2', 'H2', 'H2O'], T_unit='C', p_unit='bar')
+        self.nw = Network(T_unit='C', p_unit='bar')
         self.instance = WaterElectrolyzer('electrolyzer')
 
         fw = Source('feed water')
@@ -43,8 +37,9 @@ class TestReactors:
 
         self.instance.set_attr(pr=0.99, eta=1)
 
-        cw_el = Connection(cw_in, 'out1', self.instance, 'in1',
-                           fluid={'H2O': 1, 'H2': 0, 'O2': 0}, T=20, p=1)
+        cw_el = Connection(
+            cw_in, 'out1', self.instance, 'in1', fluid={'H2O': 1}, T=20, p=1
+       )
         el_cw = Connection(self.instance, 'out1', cw_out, 'in1', T=45)
 
         self.nw.add_conns(cw_el, el_cw)
@@ -67,7 +62,7 @@ class TestReactors:
         self.nw.add_busses(power)
 
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         msg = ('Value of power must be ' + str(power.P.val) + ', is ' +
                str(self.instance.P.val) + '.')
         assert round(power.P.val, 1) == round(self.instance.P.val), msg
@@ -80,7 +75,7 @@ class TestReactors:
         assert round(self.instance.Q.val, 4) == 0.0, msg
 
         # reset power, change efficiency value and specify heat bus value
-        power.set_attr(P=np.nan)
+        power.set_attr(P=None)
         self.nw.get_conn('h2o').set_attr(T=25, p=1)
         self.nw.get_conn('h2').set_attr(T=50)
         self.instance.set_attr(eta=0.8)
@@ -92,7 +87,7 @@ class TestReactors:
         self.nw.add_busses(heat)
 
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         msg = ('Value of heat flow must be ' + str(heat.P.val) +
                ', is ' + str(self.instance.Q.val) + '.')
         assert round(heat.P.val, 1) == round(self.instance.Q.val), msg
@@ -103,7 +98,7 @@ class TestReactors:
         Q = heat.P.val * 0.9
         heat.set_attr(P=Q)
         self.nw.solve('offdesign', design_path='tmp')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         msg = ('Value of heat flow must be ' + str(Q) +
                ', is ' + str(self.instance.Q.val) + '.')
         assert round(Q, 1) == round(self.instance.Q.val), msg
@@ -115,7 +110,7 @@ class TestReactors:
         self.nw.get_conn('h2').set_attr(m=0.1)
         self.instance.set_attr(eta=0.9, e='var')
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         msg = ('Value of efficiency must be ' + str(self.instance.eta.val) +
                ', is ' + str(self.instance.e0 / self.instance.e.val) + '.')
         eta = round(self.instance.eta.val, 2)
@@ -124,10 +119,10 @@ class TestReactors:
 
         # test efficiency value > 1, Q must be larger than 0
         e = 130e6
-        self.instance.set_attr(e=np.nan, eta=np.nan)
+        self.instance.set_attr(e=None, eta=None)
         self.instance.set_attr(e=e)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         # test efficiency
         msg = ('Value of efficiency must be ' + str(self.instance.e0 / e) +
                ', is ' + str(self.instance.eta.val) + '.')
@@ -141,10 +136,10 @@ class TestReactors:
 
         # test specific energy consumption
         e = 150e6
-        self.instance.set_attr(e=np.nan, eta=np.nan)
+        self.instance.set_attr(e=None, eta=None)
         self.instance.set_attr(e=e)
         self.nw.solve('design')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         msg = ('Value of specific energy consumption e must be ' + str(e) +
                ', is ' + str(self.instance.e.val) + '.')
         assert round(e, 1) == round(self.instance.e.val, 1), msg
@@ -156,25 +151,25 @@ class TestReactors:
         self.nw.solve('design')
         shutil.rmtree('./tmp', ignore_errors=True)
         self.nw.save('tmp')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         msg = ('Value of pressure ratio must be ' + str(pr) + ', is ' +
                str(self.instance.pr.val) + '.')
         assert round(pr, 2) == round(self.instance.pr.val, 2), msg
 
         # use zeta as offdesign parameter, at design point pressure
         # ratio must not change
-        self.instance.set_attr(zeta=np.nan, offdesign=['zeta'])
+        self.instance.set_attr(zeta=None, offdesign=['zeta'])
         self.nw.solve('offdesign', design_path='tmp')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         msg = ('Value of pressure ratio must be ' + str(pr) + ', is ' +
                str(self.instance.pr.val) + '.')
         assert round(pr, 2) == round(self.instance.pr.val, 2), msg
 
         # test heat output specification in offdesign mode
         Q = self.instance.Q.val * 0.9
-        self.instance.set_attr(Q=Q, P=np.nan)
+        self.instance.set_attr(Q=Q, P=None)
         self.nw.solve('offdesign', design_path='tmp')
-        convergence_check(self.nw.lin_dep)
+        self.nw._convergence_check()
         msg = ('Value of heat must be ' + str(Q) + ', is ' +
                str(self.instance.Q.val) + '.')
         assert round(Q, 0) == round(self.instance.Q.val, 0), msg
