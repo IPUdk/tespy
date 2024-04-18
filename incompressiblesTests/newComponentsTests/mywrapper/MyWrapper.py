@@ -3,14 +3,14 @@ from tespy.tools.fluid_properties.wrappers import FluidPropertyWrapper, CoolProp
 import numpy as np
 import matplotlib.pyplot as plt
 
-# # coefficients   a      b       c    d        
-# COEF = {
-#    "protein": {
-#        "unit" : "C",
-#        "cp": [2008.2,     1.2089, -1.3129*1e-3,    0.0],
-#        "d" : [1329.9,    -0.5184,          0.0,    0.0],
-#     }
-# }
+# coefficients   a      b       c    d        
+COEF = {
+   "protein": {
+       "unit" : "C",
+       "cp": [2008.2,     1.2089, -1.3129*1e-3,    0.0],
+       "d" : [1329.9,    -0.5184,          0.0,    0.0],
+    }
+}
 
 class MyWrapper(FluidPropertyWrapper):
     def __init__(self, fluid, back_end=None, Tref = 293.15, coefs=[]) -> None:
@@ -24,8 +24,8 @@ class MyWrapper(FluidPropertyWrapper):
         self.get_coefs(coefs)
         
         self._molar_mass = 1
-        self._T_min = 100
-        self._T_max = 2000
+        self._T_min = 273.15 - 50
+        self._T_max = 273.15 + 1000
         self._p_min = 1000
         self._p_max = 10000000
 
@@ -118,7 +118,7 @@ class MyWrapper(FluidPropertyWrapper):
 
 if __name__ == "__main__":
 
-    fluidwrap = MyWrapper("protein") 
+    fluidwrap = MyWrapper("protein",coefs=COEF) 
 
     T = 300
     p = 1e5 
