@@ -42,10 +42,10 @@ nw.add_conns(c1, c2, c3, c4)
 #     c.set_attr(m0=1, h0=100, p0=1.2)
 
 # set some generic data for starting values
-c1.set_attr(m=1, p=1.0, T=50, fluid={"HEOS::Water": 0.9, "protein": 0.1, "HEOS::Air": 0},
-            fluid_engines = {"HEOS::Water": CoolPropWrapper, "protein" : CustomWrapper, "HEOS::Air": CoolPropWrapper}, 
+c1.set_attr(m=1, p=1.0, T=50, fluid={"HEOS::Water": 0.9, "CUSTOM::protein": 0.1, "HEOS::Air": 0},
+            fluid_engines = {"HEOS::Water": CoolPropWrapper, "CUSTOM::protein" : CustomWrapper, "HEOS::Air": CoolPropWrapper}, 
             fluid_coefs = {
-                "protein": {
+                "CUSTOM::protein": {
                     "unit" : "C",
                     "cp": [2008.2,     1.2089, -1.3129*1e-3,    0.0],
                     "d" : [1329.9,    -0.5184,          0.0,    0.0],
@@ -53,10 +53,10 @@ c1.set_attr(m=1, p=1.0, T=50, fluid={"HEOS::Water": 0.9, "protein": 0.1, "HEOS::
                 },            
             mixing_rule="incompressible")
 
-c4.set_attr(m=50, p=1.0, T=80, fluid={"HEOS::Water": 0, "protein": 0, "HEOS::Air": 1}, mixing_rule="incompressible")
+c4.set_attr(m=50, p=1.0, T=80, fluid={"HEOS::Water": 0, "CUSTOM::protein": 0, "HEOS::Air": 1}, mixing_rule="incompressible")
 
 c3.set_attr(fluid={"HEOS::Water": 0.08, "HEOS::Air": 0})
-c2.set_attr(fluid={"protein": 0})
+c2.set_attr(fluid={"CUSTOM::protein": 0})
 
 
 #c3.set_attr(p=1.2,T=60,force_state='g')

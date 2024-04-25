@@ -23,15 +23,21 @@ class CustomWrapper(FluidPropertyWrapper):
     def get_coefs(self, coefs):
         if coefs[self.fluid]["unit"] == "C":
             self.C_c = coefs[self.fluid]["cp"]
+            while self.C_c and self.C_c[-1] == 0.0:
+                self.C_c.pop()
+            self.n_c = len([c for c in coefs[self.fluid]["cp"] if c != 0.0])
             self.C_d = coefs[self.fluid]["d"]
+            while self.C_d and self.C_d[-1] == 0.0:
+                self.C_d.pop()            
+            self.n_d = len([c for c in coefs[self.fluid]["d"] if c != 0.0])
             # convert coefficients
             T_C = np.linspace(1,50)
             cp = self.cp_pT(None,T_C)
             d = self.d_pT(None,T_C)
             T_K = np.linspace(1+273.15,50+273.15)
-            self.C_c = list(np.polyfit(T_K, cp, len(coefs[self.fluid]["cp"])-1))
+            self.C_c = list(np.polyfit(T_K, cp, self.n_c-1))
             self.C_c = self.C_c[::-1]
-            self.C_d = list(np.polyfit(T_K, d, len(coefs[self.fluid]["d"])-1))
+            self.C_d = list(np.polyfit(T_K, d, self.n_d-1))
             self.C_d = self.C_d[::-1]
         elif coefs[self.fluid]["unit"] == "K":
             self.C_c = coefs[self.fluid]["cp"]
@@ -40,14 +46,14 @@ class CustomWrapper(FluidPropertyWrapper):
             ValueError("unit is not C or K")
 
     def cp_pT(self, p, T):
-        return np.sum([self.C_c[i] * T**i for i in range(len(self.C_c))], axis=0)
+        return np.sum([self.C_c[i] * T**i for i in range(self.n_c)], axis=0)
    
     def d_pT(self, p, T, **kwargs):
-        return np.sum([self.C_d[i] * T**i for i in range(len(self.C_d))], axis=0)
+        return np.sum([self.C_d[i] * T**i for i in range(self.n_d)], axis=0)
 
     def u_pT(self, p, T):
         integral = 0
-        for i in range(len(self.C_c)):
+        for i in range(self.n_c):
             integral += (1 / (i + 1)) * self.C_c[i] * (T**(i + 1) - self.T0**(i + 1))
         return integral 
 
@@ -58,7 +64,7 @@ class CustomWrapper(FluidPropertyWrapper):
 
     def s_pT(self, p, T, **kwargs):
         integral = self.C_c[0] * np.log(T / self.T0)
-        for i in range(len(self.C_c) - 1):
+        for i in range(self.n_c - 1):
             integral += (1 / (i + 1)) * self.C_c[i + 1] * (T**(i + 1) - self.T0**(i + 1))
         return integral 
 

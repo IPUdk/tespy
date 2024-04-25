@@ -507,14 +507,26 @@ class Connection:
                     back_end = None            
                 self.fluid.val0.update({fluid:fraction})
 
-        elif key == "fluid_engines":
-            self.fluid.engine = value
+        elif key == "fluid_engines":  
+            for fluid, fraction in value.items():
+                if "::" in fluid:
+                    back_end, _fluid = fluid.split("::")
+                else:
+                    _fluid = fluid
+                    back_end = None                      
+                self.fluid.engine[_fluid] = value[fluid]
 
         elif key == "fluid_balance":
             self.fluid.set_attr(balance=value)
 
         elif key == "fluid_coefs":
-            self.fluid.fluid_coefs = value
+            for fluid, fraction in value.items():
+                if "::" in fluid:
+                    back_end, _fluid = fluid.split("::")
+                else:
+                    _fluid = fluid
+                    back_end = None                      
+                self.fluid.fluid_coefs[_fluid] = value[fluid]
 
         else:
             msg = f"Connections do not have an attribute named {key}"

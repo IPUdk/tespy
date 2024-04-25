@@ -1,0 +1,20 @@
+{
+    "CUSTOM::Protein": {
+        "name": "Custom protein polynomial", 
+        "unit": "C", 
+        "cp": [2008.2,  1.2089, -0.0013129], 
+        "d" : [1329.9, -0.5184]
+    },
+    "CUSTOM::Fat": {
+        "name": "Custom fat polynomial", 
+        "unit": "C", 
+        "cp": [1984.2, 1.4733, -0.0048008], 
+        "d" : [925.59, -0.41757]
+    },
+    "CUSTOM::Water": {
+        "name": "Custom water polynomial", 
+        "unit": "C", 
+        "cp": [4128.9, -0.090864, 0.0054731], 
+        "d" : [997.18, 0.0031439, -0.0037574]
+    }
+}
