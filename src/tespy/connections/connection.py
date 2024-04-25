@@ -629,7 +629,7 @@ class Connection:
             else:
                 self.fluid.back_end[fluid] = None
 
-            if self.fluid.engine[fluid].__name__ == 'MyWrapper':
+            if self.fluid.engine[fluid].__name__ == 'CustomWrapper':
                 self.fluid.wrapper[fluid] = self.fluid.engine[fluid](fluid, back_end, coefs=self.fluid.fluid_coefs)
             else:
                 self.fluid.fluid_coefs[fluid] = None

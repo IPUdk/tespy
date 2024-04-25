@@ -17,7 +17,7 @@ from tespy.components.newAdvancedComponents import TwoStreamDrier
 
 logging.basicConfig(level=logging.DEBUG)
 
-from mywrapper.MyWrapper import MyWrapper
+from tespy.tools.fluid_properties.CustomWrapper import CustomWrapper
 from tespy.tools.fluid_properties.wrappers import CoolPropWrapper
 
 # %%
@@ -43,7 +43,7 @@ nw.add_conns(c1, c2, c3, c4)
 
 # set some generic data for starting values
 c1.set_attr(m=1, p=1.0, T=50, fluid={"HEOS::Water": 0.9, "protein": 0.1, "HEOS::Air": 0},
-            fluid_engines = {"HEOS::Water": CoolPropWrapper, "protein" : MyWrapper, "HEOS::Air": CoolPropWrapper}, 
+            fluid_engines = {"HEOS::Water": CoolPropWrapper, "protein" : CustomWrapper, "HEOS::Air": CoolPropWrapper}, 
             fluid_coefs = {
                 "protein": {
                     "unit" : "C",
