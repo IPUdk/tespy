@@ -83,6 +83,12 @@ class CoolPropWrapper(FluidPropertyWrapper):
         self.AS = AbstractState(self.back_end, self.fluid)
         self._set_constants()
 
+        # we only allow two-phase for water (using for post processing)
+        if self.back_end == "HEOS" and fluid == "Water":        
+            self.TwoPhaseMedium = True
+        else:
+            self.TwoPhaseMedium = False
+
     def _set_constants(self):
         self._T_min = self.AS.trivial_keyed_output(CP.iT_min)
         self._T_max = self.AS.trivial_keyed_output(CP.iT_max)
@@ -186,9 +192,21 @@ class CoolPropWrapper(FluidPropertyWrapper):
         self._check_imposed_state(p,T,**kwargs)
         return self.AS.hmass()
 
+    def cp_pT(self, p, T, **kwargs):
+        self._check_imposed_state(p,T,**kwargs)
+        return self.AS.cpmass()
+
+    def cv_pT(self, p, T, **kwargs):
+        self._check_imposed_state(p,T,**kwargs)
+        return self.AS.cvmass()
+
     def h_QT(self, Q, T):
         self.AS.update(CP.QT_INPUTS, Q, T)
         return self.AS.hmass()
+
+    def cp_QT(self, Q, T):
+        self.AS.update(CP.QT_INPUTS, Q, T)
+        return self.AS.cpmass()    
 
     def s_QT(self, Q, T):
         self.AS.update(CP.QT_INPUTS, Q, T)

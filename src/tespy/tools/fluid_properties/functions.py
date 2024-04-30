@@ -77,14 +77,16 @@ def T_mix_ph(p, h, fluid_data, mixing_rule=None, T0=None, force_state=None):
         pure_fluid = get_pure_fluid(fluid_data)
         return pure_fluid["wrapper"].T_ph(p, h)
     else:
-        if "Water" in fluid_data and not force_state:
-            if fluid_data["Water"]["wrapper"].back_end == "HEOS":
-                Tsat = fluid_data["Water"]["wrapper"].T_sat(p)
-                T = min([fluid_data[f]["wrapper"]._T_max for f in fluid_data]+[Tsat])
-                hL = h_mix_pT(p, T, fluid_data, mixing_rule, force_state = 'l')
-                hV = h_mix_pT(p, T, fluid_data, mixing_rule, force_state = 'g')
-                if h>hL and h<hV:
-                    return Tsat
+        if sum([fluid_data[f]['wrapper'].TwoPhaseMedium for f in fluid_data.keys()]) > 1:
+            raise ValueError("we can only have a single two-phase medium")
+        TwoPhaseWrapper = [fluid_data[f]['wrapper'] for f in fluid_data.keys() if fluid_data[f]['wrapper'].TwoPhaseMedium][0]
+        if TwoPhaseWrapper and not force_state:
+            Tsat = TwoPhaseWrapper.T_sat(p)
+            T = min([TwoPhaseWrapper._T_max for f in fluid_data]+[Tsat])
+            hL = h_mix_pT(p, T, fluid_data, mixing_rule, force_state = 'l')
+            hV = h_mix_pT(p, T, fluid_data, mixing_rule, force_state = 'g')
+            if h>hL and h<hV:
+                return Tsat
         _check_mixing_rule(mixing_rule, T_MIX_PH_REVERSE, "temperature (from enthalpy)")
         kwargs = {
             "p": p, "target_value": h, "fluid_data": fluid_data, "T0": T0,
@@ -131,13 +133,15 @@ def h_mix_pQ(p, Q, fluid_data, mixing_rule=None):
         pure_fluid = get_pure_fluid(fluid_data)
         return pure_fluid["wrapper"].h_pQ(p, Q)
     else:
-        if "Water" in fluid_data:
-            if fluid_data["Water"]["wrapper"].back_end == "HEOS":
-                Tsat = fluid_data["Water"]["wrapper"].T_sat(p)
-                hL = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'l')
-                hV = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'g')
-                return hL + Q*(hV-hL)
-        msg = "Saturation function cannot be called on mixtures, unless there is HEOS::Water"
+        if sum([fluid_data[f]['wrapper'].TwoPhaseMedium for f in fluid_data.keys()]) > 1:
+            raise ValueError("we can only have a single two-phase medium")
+        TwoPhaseWrapper = [fluid_data[f]['wrapper'] for f in fluid_data.keys() if fluid_data[f]['wrapper'].TwoPhaseMedium][0]
+        if TwoPhaseWrapper:
+            Tsat = TwoPhaseWrapper.T_sat(p)
+            hL = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'l')
+            hV = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'g')
+            return hL + Q*(hV-hL)
+        msg = "Saturation function cannot be called on mixtures, unless there is TwoPhaseMedium"
         raise ValueError(msg)
 
 def dh_mix_dpQ(p, Q, fluid_data, mixing_rule=None):
@@ -152,22 +156,24 @@ def Q_mix_ph(p, h, fluid_data, mixing_rule=None, force_state=None):
         pure_fluid = get_pure_fluid(fluid_data)
         return pure_fluid["wrapper"].Q_ph(p, h)
     else:
-        if "Water" in fluid_data and not force_state:
-            if fluid_data["Water"]["wrapper"].back_end == "HEOS":
-                Tsat = fluid_data["Water"]["wrapper"].T_sat(p)
-                hL = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'l')
-                hV = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'g')
-                if h<=hL:
-                    return 0.0
-                elif h>=hV:
-                    return 1.0
-                else:
-                    return (h-hL)/(hV-hL)
+        if sum([fluid_data[f]['wrapper'].TwoPhaseMedium for f in fluid_data.keys()]) > 1:
+            raise ValueError("we can only have a single two-phase medium")
+        TwoPhaseWrapper = [fluid_data[f]['wrapper'] for f in fluid_data.keys() if fluid_data[f]['wrapper'].TwoPhaseMedium][0]
+        if TwoPhaseWrapper and not force_state:
+            Tsat = TwoPhaseWrapper.T_sat(p)
+            hL = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'l')
+            hV = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'g')
+            if h<=hL:
+                return 0.0
+            elif h>=hV:
+                return 1.0
+            else:
+                return (h-hL)/(hV-hL)
         if force_state == 'l':
             return 0.0
         elif force_state == 'g':
             return 1.0
-        msg = "Saturation function cannot be called on mixtures, unless there is HEOS::Water"
+        msg = "Saturation function cannot be called on mixtures, unless there is TwoPhaseMedium"
         raise ValueError(msg) 
 
 def p_sat_T(T, fluid_data, mixing_rule=None):
@@ -175,10 +181,12 @@ def p_sat_T(T, fluid_data, mixing_rule=None):
         pure_fluid = get_pure_fluid(fluid_data)
         return pure_fluid["wrapper"].p_sat(T)
     else:
-        if "Water" in fluid_data:
-            if fluid_data["Water"]["wrapper"].back_end == "HEOS":
-                return fluid_data["Water"]["wrapper"].p_sat(T)
-        msg = "Saturation function cannot be called on mixtures, unless there is HEOS::Water"
+        if sum([fluid_data[f]['wrapper'].TwoPhaseMedium for f in fluid_data.keys()]) > 1:
+            raise ValueError("we can only have a single two-phase medium")
+        TwoPhaseWrapper = [fluid_data[f]['wrapper'] for f in fluid_data.keys() if fluid_data[f]['wrapper'].TwoPhaseMedium][0]
+        if TwoPhaseWrapper:
+            return TwoPhaseWrapper.p_sat(T)
+        msg = "Saturation function cannot be called on mixtures, unless there is TwoPhaseMedium"
         raise ValueError(msg) 
 
 
@@ -187,10 +195,12 @@ def T_sat_p(p, fluid_data, mixing_rule=None):
         pure_fluid = get_pure_fluid(fluid_data)
         return pure_fluid["wrapper"].T_sat(p)
     else:
-        if "Water" in fluid_data:
-            if fluid_data["Water"]["wrapper"].back_end == "HEOS":
-                return fluid_data["Water"]["wrapper"].T_sat(p)
-        msg = "Saturation function cannot be called on mixtures, unless there is HEOS::Water"
+        if sum([fluid_data[f]['wrapper'].TwoPhaseMedium for f in fluid_data.keys()]) > 1:
+            raise ValueError("we can only have a single two-phase medium")
+        TwoPhaseWrapper = [fluid_data[f]['wrapper'] for f in fluid_data.keys() if fluid_data[f]['wrapper'].TwoPhaseMedium][0]
+        if TwoPhaseWrapper:
+            return TwoPhaseWrapper.T_sat(p)        
+        msg = "Saturation function cannot be called on mixtures, unless there is TwoPhaseMedium"
         raise ValueError(msg) 
 
 
@@ -206,16 +216,18 @@ def s_mix_ph(p, h, fluid_data, mixing_rule=None, T0=None, force_state=None):
         pure_fluid = get_pure_fluid(fluid_data)
         return pure_fluid["wrapper"].s_ph(p, h)
     else:
-        if "Water" in fluid_data and not force_state:
-            if fluid_data["Water"]["wrapper"].back_end == "HEOS":
-                Tsat = fluid_data["Water"]["wrapper"].T_sat(p)
-                hL = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'l')
-                hV = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'g')
-                if h>hL and h<hV:
-                    x = (h-hL)/(hV-hL)            
-                    sL = s_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'l')
-                    sV = s_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'g')
-                    return sL + x*(sV-sL)
+        if sum([fluid_data[f]['wrapper'].TwoPhaseMedium for f in fluid_data.keys()]) > 1:
+            raise ValueError("we can only have a single two-phase medium")
+        TwoPhaseWrapper = [fluid_data[f]['wrapper'] for f in fluid_data.keys() if fluid_data[f]['wrapper'].TwoPhaseMedium][0]
+        if TwoPhaseWrapper and not force_state:
+            Tsat = TwoPhaseWrapper.T_sat(p)
+            hL = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'l')
+            hV = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'g')
+            if h>hL and h<hV:
+                x = (h-hL)/(hV-hL)            
+                sL = s_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'l')
+                sV = s_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'g')
+                return sL + x*(sV-sL)
         T = T_mix_ph(p, h , fluid_data, mixing_rule, T0, force_state=force_state)
         return s_mix_pT(p, T, fluid_data, mixing_rule, force_state=force_state)
 
@@ -247,16 +259,18 @@ def v_mix_ph(p, h, fluid_data, mixing_rule=None, T0=None, force_state=None):
         pure_fluid = get_pure_fluid(fluid_data)
         return 1 / pure_fluid["wrapper"].d_ph(p, h)
     else:
-        if "Water" in fluid_data and not force_state:
-            if fluid_data["Water"]["wrapper"].back_end == "HEOS":
-                Tsat = fluid_data["Water"]["wrapper"].T_sat(p)
-                hL = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'l')
-                hV = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'g')
-                if h>hL and h<hV:
-                    x = (h-hL)/(hV-hL)            
-                    vL = v_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'l')
-                    vV = v_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'g')
-                    return vL + x*(vV-vL)
+        if sum([fluid_data[f]['wrapper'].TwoPhaseMedium for f in fluid_data.keys()]) > 1:
+            raise ValueError("we can only have a single two-phase medium")
+        TwoPhaseWrapper = [fluid_data[f]['wrapper'] for f in fluid_data.keys() if fluid_data[f]['wrapper'].TwoPhaseMedium][0]
+        if TwoPhaseWrapper and not force_state:
+            Tsat = TwoPhaseWrapper.T_sat(p)
+            hL = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'l')
+            hV = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'g')
+            if h>hL and h<hV:
+                x = (h-hL)/(hV-hL)            
+                vL = v_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'l')
+                vV = v_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'g')
+                return vL + x*(vV-vL)
         T = T_mix_ph(p, h , fluid_data, mixing_rule, T0, force_state=force_state)
         return v_mix_pT(p, T, fluid_data, mixing_rule, force_state=force_state)
 

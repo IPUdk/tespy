@@ -816,15 +816,17 @@ class Connection:
     def calc_viscosity(self, T0=None):
         try:
             return viscosity_mix_ph(self.p.val_SI, self.h.val_SI, self.fluid_data, self.mixing_rule, T0=T0)
-        except NotImplementedError:
-            return np.nan
+        except NotImplementedError as e:
+            logger.error(e)
+            
 
 
     def calc_vol(self, T0=None):
         try:
             return v_mix_ph(self.p.val_SI, self.h.val_SI, self.fluid_data, self.mixing_rule, T0=T0, force_state=self.force_state)
-        except NotImplementedError:
-            return np.nan
+        except NotImplementedError as e:
+            logger.error(e)
+            
 
     def v_func(self, k, **kwargs):
         self.residual[k] = self.calc_vol(T0=self.T.val_SI) * self.m.val_SI - self.v.val_SI
@@ -867,7 +869,8 @@ class Connection:
     def calc_x(self):
         try:
             return Q_mix_ph(self.p.val_SI, self.h.val_SI, self.fluid_data, self.mixing_rule, self.force_state)
-        except NotImplementedError:
+        except NotImplementedError as e:
+            logger.error(e)
             return np.nan
 
     def x_func(self, k, **kwargs):
@@ -883,14 +886,16 @@ class Connection:
     def calc_T_sat(self):
         try:
             return T_sat_p(self.p.val_SI, self.fluid_data)
-        except NotImplementedError:
-            return np.nan
+        except NotImplementedError as e:
+            logger.error(e)
+            
 
     def calc_Td_bp(self):
         try:
             return self.calc_T() - T_sat_p(self.p.val_SI, self.fluid_data)
-        except NotImplementedError:
-            return np.nan
+        except NotImplementedError as e:
+            logger.error(e)
+            
 
     def Td_bp_func(self, k, **kwargs):
         # temperature difference to boiling point
@@ -925,7 +930,9 @@ class Connection:
             self.T.val_SI = self.calc_T()
         number_fluids = get_number_of_fluids(self.fluid_data)
         _converged = True
-        if number_fluids > 1 and not "HEOS" in [self.fluid_data[f]["wrapper"].back_end for f in self.fluid_data] and not "Water" in [self.fluid_data[f]["wrapper"].fluid for f in self.fluid_data]:
+        if sum([self.fluid_data[f]['wrapper'].TwoPhaseMedium for f in self.fluid_data.keys()]) > 1:
+            raise ValueError("we can only have a single two-phase medium")
+        if number_fluids > 1 and not any([self.fluid_data[f]['wrapper'].TwoPhaseMedium for f in self.fluid_data.keys()]): # not "HEOS" in [self.fluid_data[f]["wrapper"].back_end for f in self.fluid_data] and not "Water" in [self.fluid_data[f]["wrapper"].fluid for f in self.fluid_data]:
             h_from_T = h_mix_pT(self.p.val_SI, self.T.val_SI, self.fluid_data, self.mixing_rule, force_state=self.force_state)
             if abs(h_from_T - self.h.val_SI) > ERR ** .5:
                 self.T.val_SI = np.nan
