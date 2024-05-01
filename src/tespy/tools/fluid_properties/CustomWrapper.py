@@ -40,10 +40,14 @@ class CustomWrapper(FluidPropertyWrapper):
             self.n_hfg = len([c for c in coefs[self.fluid]["hfg"] if c != 0.0])
 
         if coefs[self.fluid].get("Tsat"):
-            self.C_Tsat = coefs[self.fluid]["Tsat"]
-            while self.C_Tsat and self.C_Tsat[-1] == 0.0:
-                self.C_Tsat.pop()            
-            self.n_Tsat = len([c for c in coefs[self.fluid]["Tsat"] if c != 0.0])
+            if coefs[self.fluid]["Tsat"].get("coefs") and coefs[self.fluid]["Tsat"].get("eqn"):
+                self.C_Tsat = coefs[self.fluid]["Tsat"]["coefs"]
+                while self.C_Tsat and self.C_Tsat[-1] == 0.0:
+                    self.C_Tsat.pop()            
+                self.n_Tsat = self.C_Tsat
+                self.e_Tsat = coefs[self.fluid]["Tsat"].get("eqn")
+            else:
+                raise ValueError("Tsat not defined correctly")
 
         if coefs[self.fluid].get("cpG"):
             self.C_cG = coefs[self.fluid]["cpG"]
@@ -103,12 +107,18 @@ class CustomWrapper(FluidPropertyWrapper):
         return None
 
     def T_sat(self, p):
-        # antoine_equation
-        return self.C_Tsat[1] / (np.log(p) - self.C_Tsat[0]) - self.C_Tsat[2]
+        if self.e_Tsat == "antoine":
+            # antoine_equation
+            return self.C_Tsat[1] / (np.log(p) - self.C_Tsat[0]) - self.C_Tsat[2]
+        elif self.e_Tsat == "cstpair":
+            return self.C_Tsat[1]
 
     def p_sat(self, T):
-        # antoine_equation
-        return np.exp(self.C_Tsat[0] + self.C_Tsat[1]/(T + self.C_Tsat[2]))
+        if self.e_Tsat == "antoine":
+            # antoine_equation
+            return np.exp(self.C_Tsat[0] + self.C_Tsat[1]/(T + self.C_Tsat[2]))
+        elif self.e_Tsat == "cstpair":
+            return self.C_Tsat[0]               
 
     def cp_pT(self, p, T, **kwargs):
         state = self.get_state(kwargs.get('force_state',None))

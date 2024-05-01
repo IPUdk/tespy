@@ -2,15 +2,14 @@ import numpy as np
 from tespy.tools.fluid_properties.wrappers import FluidPropertyWrapper, CoolPropWrapper
 #from tespy.tools.fluid_properties.wrappers import FluidPropertyWrapper
 from tespy.tools.global_vars import gas_constants
-#from tespy.tools.fluid_properties.CustomWrapper import CustomWrapper
-from myWrapper import *
+from tespy.tools.fluid_properties.CustomWrapper import CustomWrapper as MyWrapper
 import logging
 #logging.basicConfig(level=logging.DEBUG)
 
 import matplotlib.pyplot as plt
 #import numpy as np
 
-myWrapper = MyWrapper("CUSTOM::WaterTwoPhase", 
+myWrapper = MyWrapper("CUSTOM::WaterTwoPhaseSimple", 
                       Tref = 273.15, 
                       coefs = {
                         "CUSTOM::WaterTwoPhase": {
@@ -19,12 +18,24 @@ myWrapper = MyWrapper("CUSTOM::WaterTwoPhase",
                             "cp": [7.79605665e+04,-1.12106166e+03,7.06771540e+00,-2.36638219e-02,4.43721794e-05,-4.41973243e-08,1.83159953e-11],
                             "d" : [1.35188573e+02,8.66049556e+00,-3.06549945e-02,4.62728683e-05,-2.80708081e-08],
                             "hfg"  : [3.73992983e+06, -8.02594391e+03, 1.80890144e+01, -1.93816772e-02],
-                            "Tsat" : [23.22646886130465, -3842.204328212032, -44.75853983190677],
+                            "Tsat" : {"eqn": "antoine", "coefs" : [23.22646886130465, -3842.204328212032, -44.75853983190677]},
                             # "dG"   : [8.62355442e+01,-1.05732250e+00,4.90467264e-03,-1.02406943e-05,8.15327490e-09],
                             "cpG"  : [ 4.70848101e+02,1.13556451e+01,-2.07921505e-02,-3.88616225e-05,1.18035083e-07],     
                             # "VanDerWall" : [-1717.9874574726448, -0.02306278086667577],         
                             # "ci" : [1.34379777e+03,-6.04347700e-02,9.03468908e-04,-3.62413830e-07]
-                        }
+                        },
+                        "CUSTOM::WaterTwoPhaseSimple": {
+                            "name": "Custom water polynomial", 
+                            "unit": "K", 
+                            "cp": [4180],
+                            "d" : [1000],
+                            "hfg"  : [2250e3],
+                            "Tsat" : {"eqn": "cstpair", "coefs" : [1e5, 373.15]},
+                            # "dG"   : [8.62355442e+01,-1.05732250e+00,4.90467264e-03,-1.02406943e-05,8.15327490e-09],
+                            "cpG"  : [2000],     
+                            # "VanDerWall" : [-1717.9874574726448, -0.02306278086667577],         
+                            # "ci" : [1.34379777e+03,-6.04347700e-02,9.03468908e-04,-3.62413830e-07]
+                        }                        
                       }
                       )
 

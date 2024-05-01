@@ -2,8 +2,7 @@ import numpy as np
 from tespy.tools.fluid_properties.wrappers import FluidPropertyWrapper, CoolPropWrapper
 #from tespy.tools.fluid_properties.wrappers import FluidPropertyWrapper
 from tespy.tools.global_vars import gas_constants
-#from tespy.tools.fluid_properties.CustomWrapper import CustomWrapper
-from myWrapper import *
+from tespy.tools.fluid_properties.CustomWrapper import CustomWrapper as MyWrapper
 import logging
 #logging.basicConfig(level=logging.DEBUG)
 
