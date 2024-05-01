@@ -25,7 +25,7 @@
         "hfg"  : [3.73992983e+06, -8.02594391e+03, 1.80890144e+01, -1.93816772e-02],
         "Tsat" : {"eqn": "antoine", "coefs" : [23.22646886130465, -3842.204328212032, -44.75853983190677]},
         "cpG"  : [ 4.70848101e+02,1.13556451e+01,-2.07921505e-02,-3.88616225e-05,1.18035083e-07]
-    },    
+    },
     "CUSTOM::WaterTwoPhaseSimple": {
         "name": "Custom water constants", 
         "unit": "K", 
@@ -34,5 +34,15 @@
         "hfg"  : [2250e3],
         "Tsat" : {"eqn": "cstpair", "coefs" : [1e5, 373.15]},
         "cpG"  : [2000]     
-    }           
+    },
+    "CUSTOM::KeroseneTwoPhase": {
+        "name": "Custom Kerosene", 
+        "source": "https://www.exheat.com/technical/thermal_properties_of_liquids, (cpG guessed)", 
+        "unit": "K", 
+        "cp": [2090],
+        "d" : [820],
+        "hfg"  : [251e3],
+        "Tsat" : {"eqn": "cstpair", "coefs" : [1e5, 573.15]},
+        "cpG"  : [1045]     
+    }    
 }
