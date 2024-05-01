@@ -930,8 +930,6 @@ class Connection:
             self.T.val_SI = self.calc_T()
         number_fluids = get_number_of_fluids(self.fluid_data)
         _converged = True
-        if sum([self.fluid_data[f]['wrapper'].TwoPhaseMedium for f in self.fluid_data.keys()]) > 1:
-            raise ValueError("we can only have a single two-phase medium")
         if number_fluids > 1 and not any([self.fluid_data[f]['wrapper'].TwoPhaseMedium for f in self.fluid_data.keys()]): # not "HEOS" in [self.fluid_data[f]["wrapper"].back_end for f in self.fluid_data] and not "Water" in [self.fluid_data[f]["wrapper"].fluid for f in self.fluid_data]:
             h_from_T = h_mix_pT(self.p.val_SI, self.T.val_SI, self.fluid_data, self.mixing_rule, force_state=self.force_state)
             if abs(h_from_T - self.h.val_SI) > ERR ** .5:
