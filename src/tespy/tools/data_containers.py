@@ -612,4 +612,15 @@ class ComponentPropertiesArray(DataContainer):
             'val_ref': 1, 'design': np.nan, 'is_result': False,
             'num_eq': 0, 'func_params': {}, 'func': None, 'deriv': None,
             'latex': None}
-      
+
+class StringDataContainer(DataContainer):
+
+    @staticmethod
+    def attr():
+        return {
+            'val': str,
+            'is_set': False,
+        }
+
+    def serialize(self):
+        return {"val": self.val, "is_set": self.is_set}

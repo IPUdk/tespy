@@ -3,6 +3,8 @@ import logging
 from tespy.components import SimpleHeatExchanger, Merge, Separator, Splitter, HeatExchanger
 from tespy.tools.data_containers import ComponentProperties as dc_cp
 from tespy.tools.data_containers import SimpleDataContainer as dc_simple
+from tespy.tools.data_containers import StringDataContainer as dc_string
+
 from tespy.tools.data_containers import GroupedComponentProperties as dc_gcp
 from tespy.tools.fluid_properties import T_mix_ph, h_mix_pT
 from tespy.tools.helpers import TESPyComponentError
@@ -22,7 +24,7 @@ from .newComponents import SeparatorWithSpeciesSplitsDeltaH,SeparatorWithSpecies
 
 
 def get_Twb(port,T):
-    M = port.fluid.val["Water"]/(port.fluid.val["Water"]+port.fluid.val["Air"])
+    M = port.fluid.val['Water']/(port.fluid.val['Water']+port.fluid.val["Air"])
     W = M/(1-M)
     return HAPropsSI('Twb','P',port.p.val_SI,'T',T,'W',W)
 
@@ -74,6 +76,7 @@ class TwoStreamEvaporator(SeparatorWithSpeciesSplitsDeltaH,SeparatorWithSpeciesS
         variables['deltaPhot'] = dc_cp(
                 min_val=0, num_eq=1, func=self.deltaPhot_func, latex=self.pr_func_doc,
                 deriv=self.deltaPhot_deriv)
+        variables['vaporizedfluid'] = dc_string()
         return variables
 
     def get_mandatory_constraints(self):
@@ -365,7 +368,7 @@ class TwoStreamEvaporator(SeparatorWithSpeciesSplitsDeltaH,SeparatorWithSpeciesS
         """
         return self.inl[1].m.val_SI * (
             self.outl[2].h.val_SI - self.inl[1].h.val_SI
-        ) + self.inl[0].m.val_SI*self.inl[0].fluid.val['Water']*self.KPI.val
+        ) + self.inl[0].m.val_SI*self.inl[0].fluid.val[self.vaporizedfluid.val]*self.KPI.val
 
 
     def KPI_deriv(self, increment_filter, k):
@@ -382,9 +385,9 @@ class TwoStreamEvaporator(SeparatorWithSpeciesSplitsDeltaH,SeparatorWithSpeciesS
             self.jacobian[k, o.h.J_col] = i.m.val_SI
         ci = self.inl[0]
         if self.is_variable(ci.m):
-            self.jacobian[k, ci.m.J_col] = ci.fluid.val['Water']*self.KPI.val
-        if 'Water' in ci.fluid.is_var:
-            self.jacobian[k, ci.fluid.J_col['Water']] = ci.m.val_SI*self.KPI.val
+            self.jacobian[k, ci.m.J_col] = ci.fluid.val[self.vaporizedfluid.val]*self.KPI.val
+        if self.vaporizedfluid.val in ci.fluid.is_var:
+            self.jacobian[k, ci.fluid.J_col[self.vaporizedfluid.val]] = ci.m.val_SI*self.KPI.val
 
     def kA_func(self):
         r"""
@@ -428,7 +431,7 @@ class TwoStreamEvaporator(SeparatorWithSpeciesSplitsDeltaH,SeparatorWithSpeciesS
         if not self.Q.is_set:
             self.Q.val = - self.inl[1].m.val_SI * (self.outl[2].h.val_SI - self.inl[1].h.val_SI) # np.sum([o.m.val_SI * (o.h.val_SI - i.h.val_SI) for o in self.outl])
         if not self.KPI.is_set:
-            self.KPI.val = - self.inl[1].m.val_SI * (self.outl[2].h.val_SI - self.inl[1].h.val_SI) / (self.inl[0].m.val_SI*self.inl[0].fluid.val['Water'])
+            self.KPI.val = - self.inl[1].m.val_SI * (self.outl[2].h.val_SI - self.inl[1].h.val_SI) / (self.inl[0].m.val_SI*self.inl[0].fluid.val[self.vaporizedfluid.val])
 
         hmin = min([o.h.val_SI for o in self.outl])
         hmax = max([o.h.val_SI for o in self.outl])
@@ -1079,7 +1082,7 @@ class TwoStreamDrier(SeparatorWithSpeciesSplitsDeltaH,SeparatorWithSpeciesSplits
             if self.WBeff.val > 1.0:
                 TESPyComponentError("efficiency cannot be greater than 1.0, try increase air mass flow")            
 
-        M_o = o1.fluid.val["Water"]
+        M_o = o1.fluid.val['Water']
         W_o = M_o/(1-M_o)
         Wmax = HAPropsSI('W','P',o1.p.val_SI,'T',o1.T.val_SI,'R',1)
         if W_o > Wmax:

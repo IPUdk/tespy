@@ -27,6 +27,8 @@ from tespy.tools.data_containers import GroupedComponentCharacteristics as dc_gc
 from tespy.tools.data_containers import GroupedComponentProperties as dc_gcp
 from tespy.tools.data_containers import SimpleDataContainer as dc_simple
 from tespy.tools.data_containers import ComponentPropertiesArray as dc_cpa
+
+from tespy.tools.data_containers import StringDataContainer as dc_string
 from tespy.tools.document_models import generate_latex_eq
 from tespy.tools.fluid_properties import v_mix_ph
 from tespy.tools.global_vars import ERR
@@ -226,6 +228,10 @@ class Component:
                             ' at ' + self.label + '.')
                         logger.error(msg)
                         raise TypeError(msg)
+                    
+                elif isinstance(data, dc_string):
+                    val = kwargs[key].split('::')[-1]
+                    data.set_attr(val=val, is_set=False) # do not think of this as a iteration parameter or
 
             elif key in ['design', 'offdesign']:
                 if not isinstance(kwargs[key], list):
