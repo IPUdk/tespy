@@ -1,48 +1,40 @@
 {
     "CUSTOM::Protein": {
         "name": "Custom protein polynomial", 
-        "unit": "C", 
-        "cp": [2008.2,  1.2089, -0.0013129], 
-        "d" : [1329.9, -0.5184]
+        "cp": {"eqn": "polynomial", "unit": "C", "coefs": [2008.2,     1.2089, -0.0013129]},
+        "d" : {"eqn": "polynomial", "unit": "C", "coefs": [1329.9,    -0.5184]}
     },
     "CUSTOM::Fat": {
         "name": "Custom fat polynomial", 
-        "unit": "C", 
-        "cp": [1984.2, 1.4733, -0.0048008], 
-        "d" : [925.59, -0.41757]
-    },
-    "CUSTOM::Water": {
-        "name": "Custom water polynomial", 
-        "unit": "C", 
-        "cp": [4128.9, -0.090864, 0.0054731], 
-        "d" : [997.18, 0.0031439, -0.0037574]
+        "cp": {"eqn": "polynomial", "unit": "C", "coefs": [1984.2, 1.4733, -0.0048008]}, 
+        "d" : {"eqn": "polynomial", "unit": "C", "coefs": [925.59, -0.41757]}
     },
     "CUSTOM::WaterTwoPhase": {
-        "name": "Custom water polynomial", 
-        "unit": "K", 
-        "cp": [7.79605665e+04,-1.12106166e+03,7.06771540e+00,-2.36638219e-02,4.43721794e-05,-4.41973243e-08,1.83159953e-11],
-        "d" : [1.35188573e+02,8.66049556e+00,-3.06549945e-02,4.62728683e-05,-2.80708081e-08],
-        "hfg"  : [3.73992983e+06, -8.02594391e+03, 1.80890144e+01, -1.93816772e-02],
-        "Tsat" : {"eqn": "antoine", "coefs" : [23.22646886130465, -3842.204328212032, -44.75853983190677]},
-        "cpG"  : [ 4.70848101e+02,1.13556451e+01,-2.07921505e-02,-3.88616225e-05,1.18035083e-07]
+        "name" : "Custom water model", 
+        "molarmass": 18.01528, 
+        "cp"   : {"eqn": "polynomial", "unit": "K", "coefs": [7.79605665e+04,-1.12106166e+03,7.06771540e+00,-2.36638219e-02,4.43721794e-05,-4.41973243e-08,1.83159953e-11]},
+        "d"    : {"eqn": "polynomial", "unit": "K", "coefs": [1.35188573e+02,8.66049556e+00,-3.06549945e-02,4.62728683e-05,-2.80708081e-08]},
+        "hfg"  : {"eqn": "polynomial", "unit": "K", "coefs": [3.73992983e+06, -8.02594391e+03, 1.80890144e+01, -1.93816772e-02]},
+        "Tsat" : {"eqn": "antoine"   , "unit": "K", "coefs": [23.22646886130465, -3842.204328212032, -44.75853983190677]},
+        "cpG"  : {"eqn": "polynomial", "unit": "K", "coefs": [4.70848101e+02,1.13556451e+01,-2.07921505e-02,-3.88616225e-05,1.18035083e-07]}     
     },
     "CUSTOM::WaterTwoPhaseSimple": {
-        "name": "Custom water constants", 
-        "unit": "K", 
-        "cp": [4180],
-        "d" : [1000],
-        "hfg"  : [2250e3],
-        "Tsat" : {"eqn": "cstpair", "coefs" : [1e5, 373.15]},
-        "cpG"  : [2000]     
-    },
+        "name" : "Custom water simple", 
+        "molarmass": 18.01528,
+        "cp"   : {"eqn": "polynomial", "unit": "K", "coefs": [4180]},
+        "d"    : {"eqn": "polynomial", "unit": "K", "coefs": [1000]},
+        "hfg"  : {"eqn": "polynomial", "unit": "K", "coefs": [2250e3]},
+        "Tsat" : {"eqn": "cstpair"   , "unit": "K", "coefs": [1e5, 373.15]},
+        "cpG"  : {"eqn": "polynomial", "unit": "K", "coefs": [2000]}
+    }, 
     "CUSTOM::KeroseneTwoPhase": {
         "name": "Custom Kerosene", 
+        "molarmass": 84.00,
         "source": "https://www.exheat.com/technical/thermal_properties_of_liquids, (cpG guessed)", 
-        "unit": "K", 
-        "cp": [2090],
-        "d" : [820],
-        "hfg"  : [251e3],
-        "Tsat" : {"eqn": "cstpair", "coefs" : [1e5, 573.15]},
-        "cpG"  : [1045]     
+        "cp"   : {"eqn": "polynomial", "unit": "K", "coefs": [2090]},
+        "d"    : {"eqn": "polynomial", "unit": "K", "coefs": [820]},
+        "hfg"  : {"eqn": "polynomial", "unit": "K", "coefs": [251e3]},
+        "Tsat" : {"eqn": "cstpair"   , "unit": "K", "coefs" : [1e5, 573.15]},
+        "cpG"  : {"eqn": "polynomial", "unit": "K", "coefs": [1045]}
     }    
 }

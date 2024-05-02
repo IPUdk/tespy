@@ -50,18 +50,30 @@ nw.add_conns(c1, c2)
 c1.set_attr(fluid={'CUSTOM::WaterTwoPhase': 0.80,'INCOMP::PHE': 0.15,'INCOMP::S800': 0.05},
             fluid_engines = {"CUSTOM::WaterTwoPhase": CustomWrapper, "INCOMP::PHE" : CoolPropWrapper, "INCOMP::S800": CoolPropWrapper}, 
             fluid_coefs = {
-                "CUSTOM::WaterTwoPhase": {
-                    "name": "Custom water polynomial", 
-                    "unit": "K", 
-                    "cp": [7.79605665e+04,-1.12106166e+03,7.06771540e+00,-2.36638219e-02,4.43721794e-05,-4.41973243e-08,1.83159953e-11],
-                    "d" : [1.35188573e+02,8.66049556e+00,-3.06549945e-02,4.62728683e-05,-2.80708081e-08],
-                    "hfg"  : [3.73992983e+06, -8.02594391e+03, 1.80890144e+01, -1.93816772e-02],
-                    "Tsat" : [23.22646886130465, -3842.204328212032, -44.75853983190677],
-                    # "dG"   : [8.62355442e+01,-1.05732250e+00,4.90467264e-03,-1.02406943e-05,8.15327490e-09],
-                    "cpG"  : [ 4.70848101e+02,1.13556451e+01,-2.07921505e-02,-3.88616225e-05,1.18035083e-07],
-                    # "VanDerWall" : [-1717.9874574726448, -0.02306278086667577],         
-                    # "ci" : [1.34379777e+03,-6.04347700e-02,9.03468908e-04,-3.62413830e-07]
-                }
+                        'CUSTOM::Protein': {
+                            'cp': {'eqn': "polynomial", 'unit': "C", 'coefs': [2008.2,     1.2089, -0.0013129]},
+                            'd' : {'eqn': "polynomial", 'unit': "C", 'coefs': [1329.9,    -0.5184]},
+                        },
+                        'CUSTOM::WaterTwoPhase': {
+                            'name' : "Custom water model", 
+                            'unit' : "K", 
+                            'molarmass': 18.01528, 
+                            'cp'   : {'eqn': "polynomial", 'unit': "K", 'coefs': [7.79605665e+04,-1.12106166e+03,7.06771540e+00,-2.36638219e-02,4.43721794e-05,-4.41973243e-08,1.83159953e-11]},
+                            'd'    : {'eqn': "polynomial", 'unit': "K", 'coefs': [1.35188573e+02,8.66049556e+00,-3.06549945e-02,4.62728683e-05,-2.80708081e-08]},
+                            'hfg'  : {'eqn': "polynomial", 'unit': "K", 'coefs': [3.73992983e+06, -8.02594391e+03, 1.80890144e+01, -1.93816772e-02]},
+                            'Tsat' : {'eqn': "antoine"   , 'unit': "K", 'coefs': [23.22646886130465, -3842.204328212032, -44.75853983190677]},
+                            'cpG'  : {'eqn': "polynomial", 'unit': "K", 'coefs': [4.70848101e+02,1.13556451e+01,-2.07921505e-02,-3.88616225e-05,1.18035083e-07]},     
+                        },
+                        'CUSTOM::WaterTwoPhaseSimple': {
+                            'name' : "Custom water simple", 
+                            'unit' : "K", 
+                            'molarmass': 18.01528,             
+                            'cp'   : {'eqn': "polynomial", 'unit': "K", 'coefs': [4180]},
+                            'd'    : {'eqn': "polynomial", 'unit': "K", 'coefs': [1000]},
+                            'hfg'  : {'eqn': "polynomial", 'unit': "K", 'coefs': [2250e3]},
+                            'Tsat' : {'eqn': "cstpair"   , 'unit': "K", 'coefs': [1e5, 373.15]},
+                            'cpG'  : {'eqn': "polynomial", 'unit': "K", 'coefs': [2000]},
+                        }   
             },            
             mixing_rule="incompressible")    
 

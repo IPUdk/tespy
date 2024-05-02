@@ -80,9 +80,8 @@ def T_mix_ph(p, h, fluid_data, mixing_rule=None, T0=None, force_state=None):
         TwoPhaseWrapperList = [fluid_data[f]['wrapper'] for f in fluid_data.keys() if fluid_data[f]['wrapper'].TwoPhaseMedium and fluid_data[f]['mass_fraction'] > 0]
         if len(TwoPhaseWrapperList) > 1:
             raise ValueError("We can only have a single two-phase medium with a mass fraction above 0.0")
-        else: 
+        if len(TwoPhaseWrapperList) == 1 and not force_state:
             TwoPhaseWrapper = TwoPhaseWrapperList[0]
-        if TwoPhaseWrapper and not force_state:
             Tsat = TwoPhaseWrapper.T_sat(p)
             T = min([TwoPhaseWrapper._T_max for f in fluid_data]+[Tsat])
             hL = h_mix_pT(p, T, fluid_data, mixing_rule, force_state = 'l')
@@ -138,9 +137,8 @@ def h_mix_pQ(p, Q, fluid_data, mixing_rule=None):
         TwoPhaseWrapperList = [fluid_data[f]['wrapper'] for f in fluid_data.keys() if fluid_data[f]['wrapper'].TwoPhaseMedium and fluid_data[f]['mass_fraction'] > 0]
         if len(TwoPhaseWrapperList) > 1:
             raise ValueError("We can only have a single two-phase medium with a mass fraction above 0.0")
-        else: 
-            TwoPhaseWrapper = TwoPhaseWrapperList[0]
-        if TwoPhaseWrapper:
+        if len(TwoPhaseWrapperList) == 1:
+            TwoPhaseWrapper = TwoPhaseWrapperList[0]    
             Tsat = TwoPhaseWrapper.T_sat(p)
             hL = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'l')
             hV = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'g')
@@ -163,9 +161,8 @@ def Q_mix_ph(p, h, fluid_data, mixing_rule=None, force_state=None):
         TwoPhaseWrapperList = [fluid_data[f]['wrapper'] for f in fluid_data.keys() if fluid_data[f]['wrapper'].TwoPhaseMedium and fluid_data[f]['mass_fraction'] > 0]
         if len(TwoPhaseWrapperList) > 1:
             raise ValueError("We can only have a single two-phase medium with a mass fraction above 0.0")
-        else: 
+        if len(TwoPhaseWrapperList) == 1 and not force_state:
             TwoPhaseWrapper = TwoPhaseWrapperList[0]
-        if TwoPhaseWrapper and not force_state:
             Tsat = TwoPhaseWrapper.T_sat(p)
             hL = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'l')
             hV = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'g')
@@ -190,9 +187,8 @@ def p_sat_T(T, fluid_data, mixing_rule=None):
         TwoPhaseWrapperList = [fluid_data[f]['wrapper'] for f in fluid_data.keys() if fluid_data[f]['wrapper'].TwoPhaseMedium and fluid_data[f]['mass_fraction'] > 0]
         if len(TwoPhaseWrapperList) > 1:
             raise ValueError("We can only have a single two-phase medium with a mass fraction above 0.0")
-        else: 
-            TwoPhaseWrapper = TwoPhaseWrapperList[0]
-        if TwoPhaseWrapper:
+        if len(TwoPhaseWrapperList) == 1:
+            TwoPhaseWrapper = TwoPhaseWrapperList[0]    
             return TwoPhaseWrapper.p_sat(T)
         msg = "Saturation function cannot be called on mixtures, unless there is TwoPhaseMedium"
         raise ValueError(msg) 
@@ -206,9 +202,8 @@ def T_sat_p(p, fluid_data, mixing_rule=None):
         TwoPhaseWrapperList = [fluid_data[f]['wrapper'] for f in fluid_data.keys() if fluid_data[f]['wrapper'].TwoPhaseMedium and fluid_data[f]['mass_fraction'] > 0]
         if len(TwoPhaseWrapperList) > 1:
             raise ValueError("We can only have a single two-phase medium with a mass fraction above 0.0")
-        else: 
-            TwoPhaseWrapper = TwoPhaseWrapperList[0]
-        if TwoPhaseWrapper:
+        if len(TwoPhaseWrapperList) == 1:
+            TwoPhaseWrapper = TwoPhaseWrapperList[0]    
             return TwoPhaseWrapper.T_sat(p)        
         msg = "Saturation function cannot be called on mixtures, unless there is TwoPhaseMedium"
         raise ValueError(msg) 
@@ -229,9 +224,8 @@ def s_mix_ph(p, h, fluid_data, mixing_rule=None, T0=None, force_state=None):
         TwoPhaseWrapperList = [fluid_data[f]['wrapper'] for f in fluid_data.keys() if fluid_data[f]['wrapper'].TwoPhaseMedium and fluid_data[f]['mass_fraction'] > 0]
         if len(TwoPhaseWrapperList) > 1:
             raise ValueError("We can only have a single two-phase medium with a mass fraction above 0.0")
-        else: 
+        if len(TwoPhaseWrapperList) == 1 and not force_state:
             TwoPhaseWrapper = TwoPhaseWrapperList[0]
-        if TwoPhaseWrapper and not force_state:
             Tsat = TwoPhaseWrapper.T_sat(p)
             hL = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'l')
             hV = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'g')
@@ -274,9 +268,8 @@ def v_mix_ph(p, h, fluid_data, mixing_rule=None, T0=None, force_state=None):
         TwoPhaseWrapperList = [fluid_data[f]['wrapper'] for f in fluid_data.keys() if fluid_data[f]['wrapper'].TwoPhaseMedium and fluid_data[f]['mass_fraction'] > 0]
         if len(TwoPhaseWrapperList) > 1:
             raise ValueError("We can only have a single two-phase medium with a mass fraction above 0.0")
-        else: 
+        if len(TwoPhaseWrapperList) == 1 and not force_state:
             TwoPhaseWrapper = TwoPhaseWrapperList[0]
-        if TwoPhaseWrapper and not force_state:
             Tsat = TwoPhaseWrapper.T_sat(p)
             hL = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'l')
             hV = h_mix_pT(p, Tsat, fluid_data, mixing_rule, force_state = 'g')

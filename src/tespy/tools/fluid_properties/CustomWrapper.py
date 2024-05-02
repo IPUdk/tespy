@@ -2,101 +2,92 @@ import CoolProp.CoolProp as CP
 from tespy.tools.fluid_properties.wrappers import FluidPropertyWrapper, CoolPropWrapper
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.optimize import root_scalar
 
 class CustomWrapper(FluidPropertyWrapper):
     def __init__(self, fluid, back_end=None, Tref = 293.15, coefs=[]) -> None:
         super().__init__(fluid, back_end)
         if self.fluid not in coefs:
-            msg = "Fluid not available in database"
+            msg = f"Fluid ({self.fluid}) not available in database"
             raise KeyError(msg)
 
         # get coefs (converted to kelvin) and calculate reference
         self.T0 = Tref
-        self.get_coefs(coefs)
+        self.get_coefs(coefs[self.fluid])
         
-        self._molar_mass = 1
+        self._molar_mass = coefs[self.fluid].get('molarmass',None)
+        if self._molar_mass is None and self.TwoPhaseMedium:
+            raise ValueError("Must have key (molarmass) for two-phase medium")
+
         self._T_min = 273.15 - 50
         self._T_max = 273.15 + 1000
         self._p_min = 1000
         self._p_max = 10000000
+ 
 
     def get_coefs(self, coefs):
+        self.flddat = {}
+        for k in ['cp','d','hfg','Tsat','cpG']:
+            if coefs.get(k):
+                if coefs[k].get("eqn") and coefs[k].get("coefs"):
+                    self.flddat[k] = {}
+                    self.flddat[k]['eqn'] = coefs[k]['eqn']
+                    self.flddat[k]['coefs'] = coefs[k]['coefs']
+                    self.flddat[k]['unit'] = coefs[k].get('unit',None)
+                    # remove zero  coeffs for higher order terms, if any
+                    [self.flddat[k]["coefs"][i].pop() for i in range(len(coefs[k]["coefs"]),0)]
+                    self.flddat[k]["n"] = len(self.flddat[k]["coefs"])
+                    if self.flddat[k]["unit"] == "C" and self.flddat[k]['eqn'] == "polynomial":
+                        self.convert_coefs_to_Kelvin(k)
+                    elif not self.flddat[k]["unit"] == "K":
+                        raise ValueError("We only support Kelvin as T unit for saturation equation")
+                else:
+                    raise ValueError(f"Custom model ({coefs['name']}) for variable ({self.flddat[k]}) does not have (eqn) and/or (coefs) keys")
 
-        self.C_c = coefs[self.fluid]["cp"]
-        while self.C_c and self.C_c[-1] == 0.0:
-            self.C_c.pop()
-        self.n_c = len([c for c in coefs[self.fluid]["cp"] if c != 0.0])
-        
-        self.C_d = coefs[self.fluid]["d"]
-        while self.C_d and self.C_d[-1] == 0.0:
-            self.C_d.pop()            
-        self.n_d = len([c for c in coefs[self.fluid]["d"] if c != 0.0])
-        
-        if coefs[self.fluid].get("hfg"):
-            self.C_hfg = coefs[self.fluid]["hfg"]
-            while self.C_hfg and self.C_hfg[-1] == 0.0:
-                self.C_hfg.pop()            
-            self.n_hfg = len([c for c in coefs[self.fluid]["hfg"] if c != 0.0])
-
-        if coefs[self.fluid].get("Tsat"):
-            if coefs[self.fluid]["Tsat"].get("coefs") and coefs[self.fluid]["Tsat"].get("eqn"):
-                self.C_Tsat = coefs[self.fluid]["Tsat"]["coefs"]
-                while self.C_Tsat and self.C_Tsat[-1] == 0.0:
-                    self.C_Tsat.pop()            
-                self.n_Tsat = self.C_Tsat
-                self.e_Tsat = coefs[self.fluid]["Tsat"].get("eqn")
-            else:
-                raise ValueError("Tsat not defined correctly")
-
-        if coefs[self.fluid].get("cpG"):
-            self.C_cG = coefs[self.fluid]["cpG"]
-            while self.C_cG and self.C_cG[-1] == 0.0:
-                self.C_cG.pop()            
-            self.n_cG = len([c for c in coefs[self.fluid]["cpG"] if c != 0.0])
-
-        if coefs[self.fluid].get("ci"):
-            self.C_ci = coefs[self.fluid]["ci"]
-            while self.C_ci and self.C_ci[-1] == 0.0:
-                self.C_ci.pop()            
-            self.n_ci = len([c for c in coefs[self.fluid]["ci"] if c != 0.0])
-
-        if coefs[self.fluid].get("dG"):
-            self.C_dG = coefs[self.fluid]["dG"]
-            while self.C_dG and self.C_dG[-1] == 0.0:
-                self.C_dG.pop()            
-            self.n_dG = len([c for c in coefs[self.fluid]["dG"] if c != 0.0])                     
-
-        if coefs[self.fluid].get("VanDerWall"):
-            self.C_vdw = coefs[self.fluid]["VanDerWall"]
-            while self.C_vdw and self.C_vdw[-1] == 0.0:
-                self.C_vdw.pop()            
-            self.n_vdw = len([c for c in coefs[self.fluid]["VanDerWall"] if c != 0.0])                     
-
-        self.TwoPhaseMedium = False
-        if coefs[self.fluid]["unit"] == "C" and (coefs[self.fluid].get("hfg") or coefs[self.fluid].get("Tsat")):
-            raise ValueError("TwoPhase medium must have fits in terms of K")
-        elif not coefs[self.fluid].get("hfg") and coefs[self.fluid].get("Tsat"):
-            raise ValueError("TwoPhase medium must have fits in both hfg and Tsat")
-        elif coefs[self.fluid].get("hfg") and not coefs[self.fluid].get("Tsat"):
-            raise ValueError("TwoPhase medium must have fits in both hfg and Tsat")
-        elif coefs[self.fluid].get("hfg") and coefs[self.fluid].get("Tsat"):
-            self.TwoPhaseMedium = True
-
-        if coefs[self.fluid]["unit"] == "C":
-            # convert coefficients
-            T_C = np.linspace(1,50)
-            cp = self.cp_pT(None,T_C)
-            d = self.d_pT(None,T_C)
-            T_K = np.linspace(1+273.15,50+273.15)
-            self.C_c = list(np.polyfit(T_K, cp, self.n_c-1))
-            self.C_c = self.C_c[::-1]
-            self.C_d = list(np.polyfit(T_K, d, self.n_d-1))
-            self.C_d = self.C_d[::-1]
-        elif coefs[self.fluid]["unit"] == "K":
-            pass     
+        if self.flddat.get("cp") and self.flddat.get("d"):
+            self.TwoPhaseMedium = False
+            if self.flddat.get("hfg") and self.flddat.get("Tsat") and self.flddat.get("cpG"):
+                self.TwoPhaseMedium = True
+            elif self.flddat.get("hfg") or self.flddat.get("Tsat") or self.flddat.get("cpG"):
+                raise ValueError(f"Custom two-phase model ({coefs['name']}) need hfg, Tsat, and cpG")
         else:
-            raise ValueError("unit is not C or K")
+            raise ValueError(f"Custom model ({self.fluid}) need cp, d for single phase fluid and hfg, Tsat, and cpG for two-phase fluid")
+
+    def convert_coefs_to_Kelvin(self, k):
+        # convert coefficients
+        T_C = np.linspace(1,80)
+        val = self.polyval(T_C, k)
+        T_K = np.linspace(1+273.15,80+273.15)
+        self.flddat[k]['coefs'] = list(np.polyfit(T_K, val, self.flddat[k]['n']-1))
+        self.flddat[k]['coefs'] = self.flddat[k]['coefs'][::-1]
+        valK = self.polyval(T_K, k)
+        r_value = self.r_squared_adj(val, valK, self.flddat[k]['n'])
+        if r_value < 0.999:
+            raise ValueError("could not convert polynomial satisfactory")
+            # I think this convertion should be done exact, TODO
+            
+    def polyval(self, T, key):
+        if self.flddat[key]['eqn'] == "polynomial":
+            return np.sum([self.flddat[key]['coefs'][i] * T**i for i in range(self.flddat[key]['n'])], axis=0)
+        else:
+            raise ValueError(f"Equation for ({key}) must be a (polynomial), use a single coefficient if you want a constant")
+
+    def T_sat(self, p):
+        c = self.flddat['Tsat']['coefs']
+        if self.flddat['Tsat']['eqn'] == "antoine":
+            return c[1] / (np.log(p) - c[0]) - c[2]
+        elif self.flddat['Tsat']['eqn'] == "cstpair":
+            return c[1]
+        else:
+            raise ValueError("Saturation equation must be (antoine) or (cstpair = [pressure,Temperature])")
+
+    def p_sat(self, T):
+        c = self.flddat['Tsat']['coefs']
+        if self.flddat['Tsat']['eqn'] == "antoine":
+            return np.exp(c[0] + c[1]/(T + c[2]))
+        elif self.flddat['Tsat']['eqn'] == "cstpair":
+            return c[0]               
+        else:
+            raise ValueError("Saturation equation must be (antoine) or (cstpair = [pressure,Temperature])")        
 
     def get_state(self, state = None):
         if state:
@@ -105,78 +96,55 @@ class CustomWrapper(FluidPropertyWrapper):
             elif state == 'l':
                 return 0
         return None
-
-    def T_sat(self, p):
-        if self.e_Tsat == "antoine":
-            # antoine_equation
-            return self.C_Tsat[1] / (np.log(p) - self.C_Tsat[0]) - self.C_Tsat[2]
-        elif self.e_Tsat == "cstpair":
-            return self.C_Tsat[1]
-
-    def p_sat(self, T):
-        if self.e_Tsat == "antoine":
-            # antoine_equation
-            return np.exp(self.C_Tsat[0] + self.C_Tsat[1]/(T + self.C_Tsat[2]))
-        elif self.e_Tsat == "cstpair":
-            return self.C_Tsat[0]               
-
+    
     def cp_pT(self, p, T, **kwargs):
         state = self.get_state(kwargs.get('force_state',None))
         if self.TwoPhaseMedium:
             Tsat = self.T_sat(p)
             if (T > Tsat or state == 1) and not state == 0:
-                # assume saturated 
-                return np.sum([self.C_cG[i] * Tsat**i for i in range(self.n_cG)], axis=0)
+                # assume saturated gas at Tsat (no increase with pressure)
+                return self.polyval(Tsat, "cpG")
             else:
                 # Liquid and forced liquid, i.e. (T>Tsat)
-                return np.sum([self.C_c[i] * T**i for i in range(self.n_c)], axis=0)
-        return np.sum([self.C_c[i] * T**i for i in range(self.n_c)], axis=0)
+                return self.polyval(T, "cp")
+        return self.polyval(T, "cp")
    
-    # def cpG_T(self, T):
-    #     return np.sum([self.C_cG[i] * T**i for i in range(self.n_cG)], axis=0)
-
-    def van_der_waals(self,d,T,p,R):
-        V=1/d
-        return (R * T / (V - self.C_vdw[1]) - self.C_vdw[0] / V**2 - p)/p
-    
     def d_pT(self, p, T, **kwargs):
         state = self.get_state(kwargs.get('force_state',None))
         if self.TwoPhaseMedium:
             Tsat = self.T_sat(p)
             if (T > Tsat or state == 1) and not state == 0:
-                # calculate d at saturation conditions and use ideal gas law
-                #dsat = np.sum([self.C_dG[i] * Tsat**i for i in range(self.n_dG)], axis=0)
-                #return dsat + p/(8314/18.02*T) - p/(8314/18.02*Tsat)
-                #return p/(8314/18.02*T)
-                #return np.sum([self.C_dG[i] * T**i for i in range(self.n_dG)], axis=0)
-                # R=8314/18.02
-                # res = root_scalar(self.van_der_waals, x0=p/(R*T), args=(T,p,R), bracket=[0.001,100])
-                # return res.root
-                R=8314/18.02
+                # calculate d using ideal gas law
+                R = 8314.46261815324 / self._molar_mass
                 return p/(R*T)
             else:
                 # Liquid and forced liquid, i.e. (T>Tsat)
-                return np.sum([self.C_d[i] * T**i for i in range(self.n_d)], axis=0)
-        return np.sum([self.C_d[i] * T**i for i in range(self.n_d)], axis=0)
-
-   
-    # def dG_T(self, T, **kwargs):
-    #     return np.sum([self.C_dG[i] * T**i for i in range(self.n_dG)], axis=0)    
+                return self.polyval(T, "d")
+        return self.polyval(T, "d")
 
     def hfg_pT(self, p, T):
-        return np.sum([self.C_hfg[i] * T**i for i in range(self.n_hfg)], axis=0)
+        return self.polyval(T, "hfg")
     
-    def u_pT(self, p, T):
-        integral = 0
-        for i in range(self.n_c):
-            integral += (1 / (i + 1)) * self.C_c[i] * (T**(i + 1) - self.T0**(i + 1))
-        return integral 
+    def _u_T(self, T):
+        if self.flddat['cp']['eqn'] == "polynomial":
+            integral = 0
+            for i in range(self.flddat['cp']['n']):
+                integral += (1 / (i + 1)) * self.flddat['cp']['coefs'][i] * (T**(i + 1) - self.T0**(i + 1))
+            return integral 
+        else:
+            raise ValueError(f"Equation for (cp) must be a (polynomial), use a single coefficient if you want a constant")
+        
+    def _s_T(self, T):
+        if self.flddat['cp']['eqn'] == "polynomial":
+            integral = self.flddat['cp']['coefs'][0] * np.log(T / self.T0)
+            for i in range(self.flddat['cp']['n'] - 1):
+                integral += (1 / (i + 1)) * self.flddat['cp']['coefs'][i + 1] * (T**(i + 1) - self.T0**(i + 1))            
+            return integral 
+        else:
+            raise ValueError(f"Equation for (cp) must be a (polynomial), use a single coefficient if you want a constant")        
 
-    def ui_pT(self, p, T):
-        integral = 0
-        for i in range(self.n_ci):
-            integral += (1 / (i + 1)) * self.C_ci[i] * (T**(i + 1) - self.T0**(i + 1))
-        return integral 
+    def u_pT(self, p, T):
+        return self._u_T(T)
 
     def h_pT(self, p, T, **kwargs):
         state = self.get_state(kwargs.get('force_state',None))
@@ -184,15 +152,13 @@ class CustomWrapper(FluidPropertyWrapper):
             Tsat = self.T_sat(p)
             if (T > Tsat or state == 1) and not state == 0:
                 # we do not want to use gas at T, but Tsat as the fit is saturated (keep the pressure)
-                
+                # and extrapolate cpG*(T-Tsat) instead 
                 df  = self.d_pT(p, Tsat)
                 hf  = self.u_pT(p, Tsat) - p/df
                 hfg = self.hfg_pT(p, Tsat)
                 dg  = self.d_pT(p, Tsat, force_state='g')
                 d   = self.d_pT(p, T, force_state='g')
-                # hg     = self.ui_pT(p,T) - d*self.C_vdw[0] - p/d - \
-                #          (self.ui_pT(p,Tsat) - dg*self.C_vdw[0] - p/dg)
-                hg = self.cp_pT(p, Tsat, force_state='g')*(T-Tsat) - p/d + p/dg
+                hg = self.cp_pT(p, Tsat, force_state='g')*(T-Tsat) - (p/d - p/dg)
                 h = hf + hfg + hg
             else:
                 # Liquid and forced liquid, i.e. (T>Tsat)
@@ -209,38 +175,33 @@ class CustomWrapper(FluidPropertyWrapper):
         if self.TwoPhaseMedium:
             Tsat = self.T_sat(p)
             if (T > Tsat or state == 1) and not state == 0:
-                integral = self.C_c[0] * np.log(min(T,Tsat) / self.T0)
-                for i in range(self.n_c - 1):
-                    integral += (1 / (i + 1)) * self.C_c[i + 1] * (min(T,Tsat)**(i + 1) - self.T0**(i + 1))            
                 # we do not want to use gas at T, but Tsat as the fit is saturated (keep the pressure)
-                return integral + self.hfg_pT(p, Tsat)/Tsat + (self.cp_pT(p, Tsat, force_state='g')/Tsat)*(T-Tsat)
+                sf  = self._s_T(Tsat)
+                shf = self.hfg_pT(p, Tsat)/Tsat
+                sg  = (self.cp_pT(p, Tsat, force_state='g')/Tsat)*(T-Tsat)
+                return sf + shf + sg
             else:
                 # Liquid and forced liquid, i.e. (T>Tsat)
-                integral = self.C_c[0] * np.log(T / self.T0)
-                for i in range(self.n_c - 1):
-                    integral += (1 / (i + 1)) * self.C_c[i + 1] * (T**(i + 1) - self.T0**(i + 1))                            
-                return integral
+                return self._s_T(T)
         else:
-            integral = self.C_c[0] * np.log(T / self.T0)
-            for i in range(self.n_c - 1):
-                integral += (1 / (i + 1)) * self.C_c[i + 1] * (T**(i + 1) - self.T0**(i + 1))
-            return integral 
+            return self._s_T(T)
     
     def Tx_ph(self, p, h):
         Tsat = self.T_sat(p)
         hL =  self.h_pT(p,Tsat)
         hG =  self.h_pT(p,Tsat,force_state='g')
+        x = (h-hL)/(hG-hL)
         if h >= hL and h <= hG:
-            return Tsat, (h-hL)/(hG-hL)
+            return Tsat, x
         elif h<hL:
-            return self.newton(self.h_pT, self.cp_pT, h, p, Tmax=Tsat, T=Tsat-10), 0.0
+            return self.newton(self.h_pT, self.cp_pT, h, p, Tmax=Tsat, T=Tsat-10), x
         else:
-            return self.newton(self.h_pT, self.cp_pT, h, p, Tmin=Tsat, T=Tsat+10, force_state='g'), 1.0
+            return self.newton(self.h_pT, self.cp_pT, h, p, Tmin=Tsat, T=Tsat+10, force_state='g'), x
    
     def Q_ph(self, p, h):
         if self.TwoPhaseMedium:
             T, x = self.Tx_ph(p, h)
-            return x
+            return min(max(0.0,x),1.0)
         return False
 
     def T_ph(self, p, h):
@@ -274,17 +235,26 @@ class CustomWrapper(FluidPropertyWrapper):
             hG =  self.h_pT(p,Tsat,force_state='g')
             return hL + Q*(hG-hL)
         return False
+    
+    def s_pQ(self, p, Q):
+        if self.TwoPhaseMedium:
+            Tsat = self.T_sat(p)
+            sL =  self.s_pT(p,Tsat)
+            sG =  self.s_pT(p,Tsat,force_state='g')
+            return sL + Q*(sG-sL)
+        return False    
 
     def Tx_ps(self, p, s):
         Tsat = self.T_sat(p)
         sL =  self.s_pT(p,Tsat)
         sG =  self.s_pT(p,Tsat,force_state='g')
+        x = (s-sL)/(sG-sL)
         if s >= sL and s <= sG:
-            return Tsat, (s-sL)/(sG-sL)
+            return Tsat, x
         elif s<sL:
-            return self.newton(self.s_pT, self.dsdT, s, p, Tmax=Tsat, T=Tsat-10), 0.0
+            return self.newton(self.s_pT, self.dsdT, s, p, Tmax=Tsat, T=Tsat-10), x
         else:
-            return self.newton(self.s_pT, self.dsdT, s, p, Tmin=Tsat, T=Tsat+10, force_state='g'), 1.0
+            return self.newton(self.s_pT, self.dsdT, s, p, Tmin=Tsat, T=Tsat+10, force_state='g'), x
 
     def T_ps(self, p, s):
         if self.TwoPhaseMedium:
@@ -307,9 +277,9 @@ class CustomWrapper(FluidPropertyWrapper):
         if self.TwoPhaseMedium:
             T, x = self.Tx_ph(p, h)
             if x>=0.0 and x<=1.0:
-                return self.h_pQ(p, x)
+                return self.s_pQ(p, x)
             else:
-                return self.h_pT(p, T)
+                return self.s_pT(p, T)
         T = self.T_ph(p, h)
         return self.s_pT(p, T)
 
@@ -338,22 +308,55 @@ class CustomWrapper(FluidPropertyWrapper):
             expr = abs(res / val) >= tol_rel
         return T    
 
+    def r_squared_adj(self, x, y, k=1):
+        """
+        x is true values
+        y is predicted
+        k is no. independent variables
+        """ 
+        N = len(x)
 
+        # Calculate R-squared without regression
+        mean_y = np.mean(y)
+        total_sum_of_squares = np.sum((y - mean_y)**2)
+        residual_sum_of_squares = np.sum((y - x)**2)
+        r_squared = 1 - (residual_sum_of_squares / total_sum_of_squares)
+
+        # Calculate adjusted R-squared
+        return 1 - ((1 - r_squared) * (N - 1) / (N - k - 1))
 
 if __name__ == "__main__":
 
     print("\n test protein started \n")
 
-    # coefficients   a      b       c    d        
-    COEF = {
-    "protein": {
-        "unit" : "C",
-        "cp": [2008.2,     1.2089, -1.3129*1e-3,    0.0],
-        "d" : [1329.9,    -0.5184,          0.0,    0.0],
-        }
-    }
+    # coefficients
+    COEF = coefs = {
+        'CUSTOM::Protein': {
+            'cp': {'eqn': "polynomial", 'unit': "C", 'coefs': [2008.2,     1.2089, -0.0013129]},
+            'd' : {'eqn': "polynomial", 'unit': "C", 'coefs': [1329.9,    -0.5184]},
+        },
+        'CUSTOM::WaterTwoPhase': {
+            'name' : "Custom water model", 
+            'molarmass': 18.01528, 
+            'cp'   : {'eqn': "polynomial", 'unit': "K", 'coefs': [7.79605665e+04,-1.12106166e+03,7.06771540e+00,-2.36638219e-02,4.43721794e-05,-4.41973243e-08,1.83159953e-11]},
+            'd'    : {'eqn': "polynomial", 'unit': "K", 'coefs': [1.35188573e+02,8.66049556e+00,-3.06549945e-02,4.62728683e-05,-2.80708081e-08]},
+            'hfg'  : {'eqn': "polynomial", 'unit': "K", 'coefs': [3.73992983e+06, -8.02594391e+03, 1.80890144e+01, -1.93816772e-02]},
+            'Tsat' : {'eqn': "antoine"   , 'unit': "K", 'coefs': [23.22646886130465, -3842.204328212032, -44.75853983190677]},
+            'cpG'  : {'eqn': "polynomial", 'unit': "K", 'coefs': [4.70848101e+02,1.13556451e+01,-2.07921505e-02,-3.88616225e-05,1.18035083e-07]},     
+        },
+        'CUSTOM::WaterTwoPhaseSimple': {
+            'name' : "Custom water simple", 
+            'molarmass': 18.01528,             
+            'cp'   : {'eqn': "polynomial", 'unit': "K", 'coefs': [4180]},
+            'd'    : {'eqn': "polynomial", 'unit': "K", 'coefs': [1000]},
+            'hfg'  : {'eqn': "polynomial", 'unit': "K", 'coefs': [2250e3]},
+            'Tsat' : {'eqn': "cstpair"   , 'unit': "K", 'coefs': [1e5, 373.15]},
+            'cpG'  : {'eqn': "polynomial", 'unit': "K", 'coefs': [2000]},
+        }      
+    }  
 
-    fluidwrap = CustomWrapper("protein",coefs=COEF) 
+
+    fluidwrap = CustomWrapper("CUSTOM::Protein",coefs=COEF) 
 
     T = 300
     p = 1e5 
@@ -438,21 +441,6 @@ if __name__ == "__main__":
 
     print("\n test custom two-phase water started \n")
 
-    # coefficients   a      b       c    d        
-    COEF = coefs = {
-            "CUSTOM::WaterTwoPhase": {
-                "name": "Custom water polynomial", 
-                "unit": "K", 
-                "cp": [7.79605665e+04,-1.12106166e+03,7.06771540e+00,-2.36638219e-02,4.43721794e-05,-4.41973243e-08,1.83159953e-11],
-                "d" : [1.35188573e+02,8.66049556e+00,-3.06549945e-02,4.62728683e-05,-2.80708081e-08],
-                "hfg"  : [3.73992983e+06, -8.02594391e+03, 1.80890144e+01, -1.93816772e-02],
-                "Tsat" : [23.22646886130465, -3842.204328212032, -44.75853983190677],
-                # "dG"   : [8.62355442e+01,-1.05732250e+00,4.90467264e-03,-1.02406943e-05,8.15327490e-09],
-                "cpG"  : [ 4.70848101e+02,1.13556451e+01,-2.07921505e-02,-3.88616225e-05,1.18035083e-07],     
-                # "VanDerWall" : [-1717.9874574726448, -0.02306278086667577],         
-                # "ci" : [1.34379777e+03,-6.04347700e-02,9.03468908e-04,-3.62413830e-07]
-            }    
-    }    
 
     fluidwrap = CustomWrapper("CUSTOM::WaterTwoPhase", 
                               Tref = 273.15, 

@@ -2,22 +2,21 @@ import numpy as np
 from tespy.tools.fluid_properties.wrappers import FluidPropertyWrapper, CoolPropWrapper
 #from tespy.tools.fluid_properties.wrappers import FluidPropertyWrapper
 from tespy.tools.global_vars import gas_constants
-#from tespy.tools.fluid_properties.CustomWrapper import CustomWrapper
-from .myWrapper import MyWrapper
+from tespy.tools.fluid_properties.CustomWrapper import CustomWrapper
+#from .myWrapper import MyWrapper
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
 
 # coefficients   a      b       c    d        
 COEF = {
-   "protein": {
-       "unit" : "C",
-       "cp": [2008.2,     1.2089, -1.3129*1e-3,    0.0],
-       "d" : [1329.9,    -0.5184,          0.0,    0.0],
-    }
+        'CUSTOM::Protein': {
+            'cp': {'eqn': "polynomial", 'unit': "C", 'coefs': [2008.2,     1.2089, -0.0013129]},
+            'd' : {'eqn': "polynomial", 'unit': "C", 'coefs': [1329.9,    -0.5184]},
+        },
 }
 
-myWrapper = MyWrapper("protein", Tref=298.15, coefs=COEF)  # same as in CoolProp
+myWrapper = CustomWrapper("CUSTOM::Protein", Tref=298.15, coefs=COEF)  # same as in CoolProp
 h = myWrapper.h_pT(1e5, 400)
 T = myWrapper.T_ph(1e5, h)
 
@@ -49,11 +48,11 @@ c1.set_attr(
     p=1, 
     T=20,
     fluid = {
-        "protein": 0.5,
+        "CUSTOM::Protein": 0.5,
         "water": 0.5
         }, 
     fluid_engines = {
-        "protein" : CustomWrapper,
+        "CUSTOM::Protein" : CustomWrapper,
         "water"   : CoolPropWrapper 
         }, 
     fluid_coefs = COEF,

@@ -42,21 +42,40 @@ nw.add_conns(c1, c2, c3, c4)
 #     c.set_attr(m0=1, h0=100, p0=1.2)
 
 # set some generic data for starting values
-c1.set_attr(m=1, p=1.0, T=50, fluid={"HEOS::Water": 0.9, "CUSTOM::protein": 0.1, "HEOS::Air": 0},
-            fluid_engines = {"HEOS::Water": CoolPropWrapper, "CUSTOM::protein" : CustomWrapper, "HEOS::Air": CoolPropWrapper}, 
+c1.set_attr(m=1, p=1.0, T=50, fluid={"HEOS::Water": 0.9, "CUSTOM::Protein": 0.1, "HEOS::Air": 0},
+            fluid_engines = {"HEOS::Water": CoolPropWrapper, "CUSTOM::Protein" : CustomWrapper, "HEOS::Air": CoolPropWrapper}, 
             fluid_coefs = {
-                "CUSTOM::protein": {
-                    "unit" : "C",
-                    "cp": [2008.2,     1.2089, -1.3129*1e-3,    0.0],
-                    "d" : [1329.9,    -0.5184,          0.0,    0.0],
-                    }
+                        'CUSTOM::Protein': {
+                            'cp': {'eqn': "polynomial", 'unit': "C", 'coefs': [2008.2,     1.2089, -0.0013129]},
+                            'd' : {'eqn': "polynomial", 'unit': "C", 'coefs': [1329.9,    -0.5184]},
+                        },
+                        'CUSTOM::WaterTwoPhase': {
+                            'name' : "Custom water model", 
+                            'unit' : "K", 
+                            'molarmass': 18.01528, 
+                            'cp'   : {'eqn': "polynomial", 'unit': "K", 'coefs': [7.79605665e+04,-1.12106166e+03,7.06771540e+00,-2.36638219e-02,4.43721794e-05,-4.41973243e-08,1.83159953e-11]},
+                            'd'    : {'eqn': "polynomial", 'unit': "K", 'coefs': [1.35188573e+02,8.66049556e+00,-3.06549945e-02,4.62728683e-05,-2.80708081e-08]},
+                            'hfg'  : {'eqn': "polynomial", 'unit': "K", 'coefs': [3.73992983e+06, -8.02594391e+03, 1.80890144e+01, -1.93816772e-02]},
+                            'Tsat' : {'eqn': "antoine"   , 'unit': "K", 'coefs': [23.22646886130465, -3842.204328212032, -44.75853983190677]},
+                            'cpG'  : {'eqn': "polynomial", 'unit': "K", 'coefs': [4.70848101e+02,1.13556451e+01,-2.07921505e-02,-3.88616225e-05,1.18035083e-07]},     
+                        },
+                        'CUSTOM::WaterTwoPhaseSimple': {
+                            'name' : "Custom water simple", 
+                            'unit' : "K", 
+                            'molarmass': 18.01528,             
+                            'cp'   : {'eqn': "polynomial", 'unit': "K", 'coefs': [4180]},
+                            'd'    : {'eqn': "polynomial", 'unit': "K", 'coefs': [1000]},
+                            'hfg'  : {'eqn': "polynomial", 'unit': "K", 'coefs': [2250e3]},
+                            'Tsat' : {'eqn': "cstpair"   , 'unit': "K", 'coefs': [1e5, 373.15]},
+                            'cpG'  : {'eqn': "polynomial", 'unit': "K", 'coefs': [2000]},
+                        }   
                 },            
             mixing_rule="incompressible")
 
-c4.set_attr(m=50, p=1.0, T=80, fluid={"HEOS::Water": 0, "CUSTOM::protein": 0, "HEOS::Air": 1}, mixing_rule="incompressible")
+c4.set_attr(m=50, p=1.0, T=80, fluid={"HEOS::Water": 0, "CUSTOM::Protein": 0, "HEOS::Air": 1}, mixing_rule="incompressible")
 
 c3.set_attr(fluid={"HEOS::Water": 0.08, "HEOS::Air": 0})
-c2.set_attr(fluid={"CUSTOM::protein": 0})
+c2.set_attr(fluid={"CUSTOM::Protein": 0})
 
 
 #c3.set_attr(p=1.2,T=60,force_state='g')
