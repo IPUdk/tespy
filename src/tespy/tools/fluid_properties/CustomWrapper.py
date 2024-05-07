@@ -72,22 +72,29 @@ class CustomWrapper(FluidPropertyWrapper):
             raise ValueError(f"Equation for ({key}) must be a (polynomial), use a single coefficient if you want a constant")
 
     def T_sat(self, p):
-        c = self.flddat['Tsat']['coefs']
-        if self.flddat['Tsat']['eqn'] == "antoine":
-            return c[1] / (np.log(p) - c[0]) - c[2]
-        elif self.flddat['Tsat']['eqn'] == "cstpair":
-            return c[1]
+        if self.TwoPhaseMedium:
+            c = self.flddat['Tsat']['coefs']
+            if self.flddat['Tsat']['eqn'] == "antoine":
+                return c[1] / (np.log(p) - c[0]) - c[2]
+            elif self.flddat['Tsat']['eqn'] == "cstpair":
+                return c[1]
+            else:
+                raise ValueError("Saturation equation must be (antoine) or (cstpair = [pressure,Temperature])")
         else:
-            raise ValueError("Saturation equation must be (antoine) or (cstpair = [pressure,Temperature])")
+            return np.nan
+        
 
     def p_sat(self, T):
-        c = self.flddat['Tsat']['coefs']
-        if self.flddat['Tsat']['eqn'] == "antoine":
-            return np.exp(c[0] + c[1]/(T + c[2]))
-        elif self.flddat['Tsat']['eqn'] == "cstpair":
-            return c[0]               
+        if self.TwoPhaseMedium:
+            c = self.flddat['Tsat']['coefs']
+            if self.flddat['Tsat']['eqn'] == "antoine":
+                return np.exp(c[0] + c[1]/(T + c[2]))
+            elif self.flddat['Tsat']['eqn'] == "cstpair":
+                return c[0]               
+            else:
+                raise ValueError("Saturation equation must be (antoine) or (cstpair = [pressure,Temperature])")        
         else:
-            raise ValueError("Saturation equation must be (antoine) or (cstpair = [pressure,Temperature])")        
+            return np.nan
 
     def get_state(self, state = None):
         if state:
@@ -202,7 +209,7 @@ class CustomWrapper(FluidPropertyWrapper):
         if self.TwoPhaseMedium:
             T, x = self.Tx_ph(p, h)
             return min(max(0.0,x),1.0)
-        return False
+        return np.nan
 
     def T_ph(self, p, h):
         if self.TwoPhaseMedium:
@@ -226,7 +233,7 @@ class CustomWrapper(FluidPropertyWrapper):
             dg = self.d_pT(p, Tsat, force_state='g')
             dl = self.d_pT(p, Tsat, force_state='l')
             return 1/(1/dl + Q*(1/dg - 1/dl))
-        return False    
+        return np.nan    
 
     def h_pQ(self, p, Q):
         if self.TwoPhaseMedium:
@@ -234,7 +241,7 @@ class CustomWrapper(FluidPropertyWrapper):
             hL =  self.h_pT(p,Tsat)
             hG =  self.h_pT(p,Tsat,force_state='g')
             return hL + Q*(hG-hL)
-        return False
+        return np.nan
     
     def s_pQ(self, p, Q):
         if self.TwoPhaseMedium:
@@ -242,7 +249,7 @@ class CustomWrapper(FluidPropertyWrapper):
             sL =  self.s_pT(p,Tsat)
             sG =  self.s_pT(p,Tsat,force_state='g')
             return sL + Q*(sG-sL)
-        return False    
+        return np.nan    
 
     def Tx_ps(self, p, s):
         Tsat = self.T_sat(p)
