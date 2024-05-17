@@ -794,15 +794,14 @@ class Network:
                         set(branch_data["connections"])
                         & set(ob_data["connections"])
                     )
-                    if len(common_connections) > 0:
+                    if len(common_connections) > 0 and ob_name in merged:
                         merged[branch_name]["connections"] = list(
                             set(branch_data["connections"] + ob_data["connections"])
                         )
                         merged[branch_name]["components"] = list(
                             set(branch_data["components"] + ob_data["components"])
                         )
-                        if merged.get(ob_name,False):
-                            del merged[ob_name]
+                        del merged[ob_name]
                         break
 
         self.fluid_wrapper_branches = merged
@@ -940,6 +939,8 @@ class Network:
             back_ends = {}
             fluid_coefss = {}
             for c in all_connections:
+                print(c.fluid.is_set)
+
                 for f in c.fluid.is_set:
                     any_fluids_set += [f]
                     if f in c.fluid.engine:
