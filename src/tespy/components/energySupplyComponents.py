@@ -486,6 +486,30 @@ class BoilerEffUsefullLossEnergySupply(Splitter):
         self.Energy.val = self.outl[0].m.val_SI
 
 
+class CompressorEffEnergySupply(BoilerEffEnergySupply):
+    pass
+
+class CompressorEffUsefullLossEnergySupply(BoilerEffUsefullLossEnergySupply):
+
+    """
+    BoilerEff defines self.outl[0].m.val_SI
+    UsefullLossRatio defines self.outl[1].m.val_SI but in terms of energy in    
+    """
+
+    def usefull_func(self):
+        return self.inl[0].m.val_SI * self.UsefullLossRatio.val - self.outl[1].m.val_SI
+
+    def usefull_deriv(self, increment_filter, k):
+        inl = self.inl[0]
+        outl = self.outl[1]
+        if inl.m.is_var:
+            self.jacobian[k, inl.m.J_col] = self.UsefullLossRatio.val
+        if outl.m.is_var:
+            self.jacobian[k, outl.m.J_col] = -1
+
+    def calc_parameters(self):
+        super().calc_parameters()
+        self.EnergyLoss.val = max(0.0, self.inl[0].m.val_SI - sum([o.m.val_SI for o in self.outl]))
 
 class MergeEnergySupply(Merge):
 
