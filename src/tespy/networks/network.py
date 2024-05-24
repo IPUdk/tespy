@@ -2247,7 +2247,7 @@ class Network:
             fluid = '{:.2e}'.format(norm_fluid)
             component  = '{:.2e}'.format(norm_component)
 
-        residual_norm = norm(np.append(residual_norm,np.array([norm_massflow, norm_pressure, norm_enthalpy, norm_fluid, norm_component])))
+            residual_norm = norm(np.append(residual_norm,np.array([norm_massflow, norm_pressure, norm_enthalpy, norm_fluid, norm_component])))
 
         if not np.isnan(residual_norm):
             residual = '{:.2e}'.format(residual_norm)
