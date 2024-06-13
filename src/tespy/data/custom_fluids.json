@@ -1,40 +1,44 @@
 {
-    "CUSTOM::Protein": {
-        "name": "Custom protein polynomial", 
-        "cp": {"eqn": "polynomial", "unit": "C", "coefs": [2008.2,     1.2089, -0.0013129]},
-        "d" : {"eqn": "polynomial", "unit": "C", "coefs": [1329.9,    -0.5184]}
-    },
-    "CUSTOM::Fat": {
-        "name": "Custom fat polynomial", 
-        "cp": {"eqn": "polynomial", "unit": "C", "coefs": [1984.2, 1.4733, -0.0048008]}, 
-        "d" : {"eqn": "polynomial", "unit": "C", "coefs": [925.59, -0.41757]}
-    },
-    "CUSTOM::WaterTwoPhase": {
-        "name" : "Custom water model", 
-        "molarmass": 18.01528, 
-        "cp"   : {"eqn": "polynomial", "unit": "K", "coefs": [7.79605665e+04,-1.12106166e+03,7.06771540e+00,-2.36638219e-02,4.43721794e-05,-4.41973243e-08,1.83159953e-11]},
-        "d"    : {"eqn": "polynomial", "unit": "K", "coefs": [1.35188573e+02,8.66049556e+00,-3.06549945e-02,4.62728683e-05,-2.80708081e-08]},
-        "hfg"  : {"eqn": "polynomial", "unit": "K", "coefs": [3.73992983e+06, -8.02594391e+03, 1.80890144e+01, -1.93816772e-02]},
-        "Tsat" : {"eqn": "antoine"   , "unit": "K", "coefs": [23.22646886130465, -3842.204328212032, -44.75853983190677]},
-        "cpG"  : {"eqn": "polynomial", "unit": "K", "coefs": [4.70848101e+02,1.13556451e+01,-2.07921505e-02,-3.88616225e-05,1.18035083e-07]}     
-    },
-    "CUSTOM::WaterTwoPhaseSimple": {
-        "name" : "Custom water simple", 
-        "molarmass": 18.01528,
-        "cp"   : {"eqn": "polynomial", "unit": "K", "coefs": [4180]},
-        "d"    : {"eqn": "polynomial", "unit": "K", "coefs": [1000]},
-        "hfg"  : {"eqn": "polynomial", "unit": "K", "coefs": [2250e3]},
-        "Tsat" : {"eqn": "cstpair"   , "unit": "K", "coefs": [1e5, 373.15]},
-        "cpG"  : {"eqn": "polynomial", "unit": "K", "coefs": [2000]}
-    }, 
-    "CUSTOM::KeroseneTwoPhase": {
+    "CUSTOM::Kerosene": {
         "name": "Custom Kerosene", 
         "molarmass": 84.00,
         "source": "https://www.exheat.com/technical/thermal_properties_of_liquids, (cpG guessed)", 
         "cp"   : {"eqn": "polynomial", "unit": "K", "coefs": [2090]},
         "d"    : {"eqn": "polynomial", "unit": "K", "coefs": [820]},
         "hfg"  : {"eqn": "polynomial", "unit": "K", "coefs": [251e3]},
-        "Tsat" : {"eqn": "cstpair"   , "unit": "K", "coefs" : [1e5, 573.15]},
+        "Tsat" : {"eqn": "cstpair"   , "unit": "K", "coefs": [1e5, 573.15]},
         "cpG"  : {"eqn": "polynomial", "unit": "K", "coefs": [1045]}
-    }    
+    },
+    "CUSTOM::Oil": {
+        "name": "Custom Oil petroleum based", 
+        "molarmass": 84.00,
+        "source": "https://www.exheat.com/technical/thermal_properties_of_liquids, Excel with calcs for density and cp, (cpG guessed)", 
+        "cp"   : {"eqn": "polynomial", "unit": "K", "coefs": [741.596858638721, 4.64659685863878]},    
+        "d"    : {"eqn": "polynomial", "unit": "K", "coefs": [1100.33480176211, -0.707709251101322]},  
+        "hfg"  : {"eqn": "polynomial", "unit": "K", "coefs": [577e3]},
+        "Tsat" : {"eqn": "cstpair"   , "unit": "K", "coefs": [1e5, 723.15]},
+        "cpG"  : {"eqn": "polynomial", "unit": "K", "coefs": [1045]}
+    },
+    "CUSTOM::LinseedOil": {
+        "name" : "Custom linseed oil, simple", 
+        "cp"   : {"eqn": "polynomial", "unit": "K", "coefs": [1840]}, 
+        "d"    : {"eqn": "polynomial", "unit": "K", "coefs": [930]}
+    },
+    "CUSTOM::SoyOil": {
+        "name" : "Custom linseed oil", 
+        "cp"   : {"eqn": "polynomial", "unit": "K", "coefs": [1024.36097023809,  3.04035714285712]}, 
+        "d"    : {"eqn": "polynomial", "unit": "K", "coefs": [1039.22509464284, -0.397535714285711]} 
+    },
+    "CUSTOM::Turpentine_Simple": {
+        "name" : "Custom Turpentine, simple",
+        "source": "https://www.aqua-calc.com/page/density-table/substance/turpentine , https://www.engineeringtoolbox.com/specific-heat-fluids-d_151.html",
+        "cp"   : {"eqn": "polynomial", "unit": "K", "coefs": [1720]}, 
+        "d"    : {"eqn": "polynomial", "unit": "K", "coefs": [865]}
+    },
+    "CUSTOM::CO2Gas": {
+        "name" : "Custom CO2 as gas, simple",
+        "source": "https://encyclopedia.airliquide.com/carbon-dioxide#properties",
+        "cp"   : {"eqn": "polynomial", "unit": "K", "coefs": [850.85]}, 
+        "d"    : {"eqn": "polynomial", "unit": "K", "coefs": [1.807664]}
+    }
 }
