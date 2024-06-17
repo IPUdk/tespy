@@ -1,4 +1,14 @@
 {
+    "CUSTOM::Protein": {
+        "name": "Custom protein polynomial", 
+        "cp": {"eqn": "polynomial", "unit": "C", "coefs": [2008.2,     1.2089, -0.0013129]},
+        "d" : {"eqn": "polynomial", "unit": "C", "coefs": [1329.9,    -0.5184]}
+    },
+    "CUSTOM::Fat": {
+        "name": "Custom fat polynomial", 
+        "cp": {"eqn": "polynomial", "unit": "C", "coefs": [1984.2, 1.4733, -0.0048008]}, 
+        "d" : {"eqn": "polynomial", "unit": "C", "coefs": [925.59, -0.41757]}
+    },
     "CUSTOM::Kerosene": {
         "name": "Custom Kerosene", 
         "molarmass": 84.00,
